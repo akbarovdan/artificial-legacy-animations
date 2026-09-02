@@ -18,28 +18,27 @@ class ProLogicFlowSVG(Scene):
         # 1. ЗАГРУЖАЕМ SVG ИКОНКИ И ТЕКСТЫ
         # ==================================
         
-        # Дверь Свободы (Оригинал)
+        # Дверь Свободы
         door_a_icon = SVGMobject("src/svg/door.svg").set_color(WHITE).scale(1)
         door_a_icon.shift(UP*4 + LEFT*2)
-        da_txt = Text("FREEDOM", font_size=24, color=NEON_GREEN, weight=BOLD).next_to(door_a_icon, UP)
+        da_txt = Text("Freedom", font="UnifrakturMaguntia", font_size=40, color=WHITE, weight=BOLD).next_to(door_a_icon, UP)
         
-        # Дверь Смерти (Отзеркаленная)
+        # Дверь Смерти
         door_b_icon = SVGMobject("src/svg/door.svg").set_color(WHITE).scale(1)
-        door_b_icon.flip(UP)  # <--- МАГИЯ ЗДЕСЬ (Отзеркаливаем по горизонтали)
+        door_b_icon.flip(UP) 
         door_b_icon.shift(UP*4 + RIGHT*2)
-        db_txt = Text("DEATH", font_size=24, color=NEON_RED, weight=BOLD).next_to(door_b_icon, UP)
+        db_txt = Text("Death",font="UnifrakturMaguntia", font_size=40, color=WHITE, weight=BOLD).next_to(door_b_icon, UP)
 
-        # Стражник 1 (Правда - Слева). Отзеркаливаем его, чтобы смотрел вправо!
+        # Стражник 1 Truth
         g_truth_icon = SVGMobject("src/svg/knight.svg").set_color(WHITE).scale(1.1)
-        g_truth_icon.flip(UP)  # <--- ПЕРЕНЕСЛИ СЮДА
+        g_truth_icon.flip(UP)
         g_truth_icon.shift(UP*0.5 + LEFT*2)
-        gt_txt = Text("TRUTH", font_size=24, color=NEON_BLUE).next_to(g_truth_icon, DOWN)
+        gt_txt = Text("Truth",font="UnifrakturMaguntia", font_size=40, color=NEON_BLUE).next_to(g_truth_icon, DOWN)
 
-        # Стражник 2 (Лжец - Справа). Оставляем оригинал, он будет смотреть влево!
+        # Стражник 2 Liar
         g_liar_icon = SVGMobject("src/svg/knight.svg").set_color(WHITE).scale(1.1)
-        # Убрали флип отсюда
         g_liar_icon.shift(UP*0.5 + RIGHT*2)
-        gl_txt = Text("LIAR", font_size=24, color=NEON_ORANGE).next_to(g_liar_icon, DOWN)
+        gl_txt = Text("Liar", font="UnifrakturMaguntia", font_size=40, color=NEON_ORANGE).next_to(g_liar_icon, DOWN)
 
         # Игрок (Сначала грустный / растерянный)
         player_sad = SVGMobject("src/svg/sad_you.svg").set_color(WHITE).scale(0.8)
@@ -55,14 +54,14 @@ class ProLogicFlowSVG(Scene):
         # 2. АНИМАЦИЯ ПОЯВЛЕНИЯ
         # ==========================================
         self.play(
-            DrawBorderThenFill(door_a_icon), FadeIn(da_txt, shift=DOWN),
-            DrawBorderThenFill(door_b_icon), FadeIn(db_txt, shift=DOWN),
-            run_time=2
+            DrawBorderThenFill(door_a_icon),
+            DrawBorderThenFill(door_b_icon),
+            run_time=3
         )
         self.play(
             DrawBorderThenFill(g_truth_icon), FadeIn(gt_txt, shift=UP),
             DrawBorderThenFill(g_liar_icon), FadeIn(gl_txt, shift=UP),
-            run_time=2
+            run_time=3
         )
         # Отрисовываем грустного Игрока
         self.play(DrawBorderThenFill(player_sad), FadeIn(p_txt, shift=UP))
