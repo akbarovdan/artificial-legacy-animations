@@ -8,125 +8,268 @@ config.frame_height = 16
 
 class ProLogicFlowSVG(Scene):
     def construct(self):
-        # --- ЦВЕТОВАЯ ПАЛИТРА ---
-        NEON_GREEN = "#00FF66"
-        NEON_RED = "#FF3366"
-        NEON_BLUE = "#00E5FF"
-        NEON_ORANGE = "#FF9900"
-        
-        # ==================================
-        # 1. ЗАГРУЖАЕМ SVG ИКОНКИ И ТЕКСТЫ
-        # ==================================
-        
-        # Дверь Свободы
-        door_a_icon = SVGMobject("src/svg/door.svg").set_color(WHITE).scale(1)
-        door_a_icon.shift(UP*4 + LEFT*2)
-        da_txt = Text("Freedom", font="UnifrakturMaguntia", font_size=40, color=WHITE, weight=BOLD).next_to(door_a_icon, UP)
-        
-        # Дверь Смерти
-        door_b_icon = SVGMobject("src/svg/door.svg").set_color(WHITE).scale(1)
-        door_b_icon.flip(UP) 
-        door_b_icon.shift(UP*4 + RIGHT*2)
-        db_txt = Text("Death",font="UnifrakturMaguntia", font_size=40, color=WHITE, weight=BOLD).next_to(door_b_icon, UP)
-
-        # Стражник 1 Truth
-        g_truth_icon = SVGMobject("src/svg/knight.svg").set_color(WHITE).scale(1.1)
-        g_truth_icon.flip(UP)
-        g_truth_icon.shift(UP*0.5 + LEFT*2)
-        gt_txt = Text("Truth",font="UnifrakturMaguntia", font_size=40, color=NEON_BLUE).next_to(g_truth_icon, DOWN)
-
-        # Стражник 2 Liar
-        g_liar_icon = SVGMobject("src/svg/knight.svg").set_color(WHITE).scale(1.1)
-        g_liar_icon.shift(UP*0.5 + RIGHT*2)
-        gl_txt = Text("Liar", font="UnifrakturMaguntia", font_size=40, color=NEON_ORANGE).next_to(g_liar_icon, DOWN)
-
-        # Игрок (Сначала грустный / растерянный)
-        player_sad = SVGMobject("src/svg/sad_you.svg").set_color(WHITE).scale(0.8)
-        player_sad.shift(DOWN*4)
-        p_txt = Text("YOU", font_size=24).next_to(player_sad, DOWN)
-        player_group = VGroup(player_sad, p_txt)
-
-        # Игрок (Улыбающийся, для финала. Прячем его пока)
-        player_smile = SVGMobject("src/svg/smile_you.svg").set_color(NEON_GREEN).scale(0.8)
-        player_smile.move_to(player_sad.get_center()) # Ставим ровно на то же место
+        # --- ПРЕМИАЛЬНАЯ ПАСТЕЛЬНАЯ ПАЛИТРА (Catppuccin Style) ---
+        SOFT_GREEN  = "#A6E3A1"
+        SOFT_RED    = "#F38BA8"
+        SOFT_BLUE   = "#89B4FA"
+        SOFT_ORANGE = "#FAB387"
+        SOFT_TEXT   = "#CDD6F4"
 
         # ==========================================
-        # 2. АНИМАЦИЯ ПОЯВЛЕНИЯ
+        # 1. ЗАГРУЖАЕМ БАЗОВЫЕ ИКОНКИ (Без текста)
+        # ==========================================
+        
+        door_a_icon = SVGMobject("src/svg/door.svg").set_color(SOFT_TEXT).scale(1)
+        door_a_icon.shift(UP*4 + LEFT*2)
+        
+        door_b_icon = SVGMobject("src/svg/door.svg").set_color(SOFT_TEXT).scale(1)
+        door_b_icon.flip(UP) 
+        door_b_icon.shift(UP*4 + RIGHT*2)
+
+        g1_icon = SVGMobject("src/svg/knight.svg").set_color(SOFT_TEXT).scale(1.1)
+        g1_icon.flip(UP)
+        g1_icon.shift(UP*0.5 + LEFT*2)
+
+        g2_icon = SVGMobject("src/svg/knight.svg").set_color(SOFT_TEXT).scale(1.1)
+        g2_icon.shift(UP*0.5 + RIGHT*2)
+
+        player_sad = SVGMobject("src/svg/sad_you.svg").set_color(SOFT_TEXT).scale(0.7)
+        player_sad.shift(DOWN*4)
+        p_txt = Text("YOU", font_size=30, color=SOFT_TEXT).next_to(player_sad, DOWN)
+        player_group = VGroup(player_sad, p_txt)
+
+        player_smile = SVGMobject("src/svg/smile_you.svg").set_color(SOFT_TEXT).scale(0.7)
+        player_smile.move_to(player_sad.get_center()) 
+
+        # Копия грустного игрока для возврата в исходную позицию позже
+        player_sad_return = player_sad.copy()
+
+        # ==========================================
+        # 2. АНИМАЦИЯ ПОЯВЛЕНИЯ БАЗЫ
         # ==========================================
         self.play(
             DrawBorderThenFill(door_a_icon),
             DrawBorderThenFill(door_b_icon),
-            run_time=3
+            run_time=1
         )
         self.play(
-            DrawBorderThenFill(g_truth_icon), FadeIn(gt_txt, shift=UP),
-            DrawBorderThenFill(g_liar_icon), FadeIn(gl_txt, shift=UP),
-            run_time=3
+            DrawBorderThenFill(g1_icon),
+            DrawBorderThenFill(g2_icon),
+            run_time=1
         )
-        # Отрисовываем грустного Игрока
         self.play(DrawBorderThenFill(player_sad), FadeIn(p_txt, shift=UP))
         self.wait(1)
 
         # ==========================================
-        # 3. РИСУЕМ ПРОВОДА (PATHS)
+        # 3. СЦЕНА ОБМАНА: "Иллюзия правильного выбора"
         # ==========================================
-        # Маршрут сигнала от макушки грустной иконки
-        path1 = Line(player_sad.get_top(), g_liar_icon.get_bottom(), color=GRAY)
-        path2 = Line(g_liar_icon.get_left(), g_truth_icon.get_right(), color=GRAY)
-        path3 = Line(g_truth_icon.get_top(), door_b_icon.get_bottom(), color=GRAY)
         
-        self.play(Create(path1), Create(path2), Create(path3), run_time=1.5)
-        self.wait(0.5)
+        path1 = Line(player_sad.get_center(), g2_icon.get_center(), buff=0.9, color=GRAY).set_z_index(-1)
+        path2 = Line(g2_icon.get_center(), door_b_icon.get_center(), buff=1.1, color=GRAY).set_z_index(-1)
+        
+        self.play(Create(path1), run_time=1.5)
+        self.play(Create(path2), run_time=1.5)
 
-        # ==========================================
-        # 4. АНИМАЦИЯ СИГНАЛА
-        # ==========================================
-        signal = Dot(color=NEON_GREEN, radius=0.25)
-        signal.move_to(player_sad.get_top())
-        
-        self.play(FadeIn(signal, scale=0.5))
-        
-        # К Лжецу
-        self.play(MoveAlongPath(signal, path1), run_time=1)
-        
-        # Инверсия (Зеленый -> Красный)
+        fake_truth_txt = Text("Truth", font_size=30, color=SOFT_BLUE)
+        fake_truth_txt.next_to(g2_icon, DOWN).shift(LEFT * 0.3)
+        fake_truth_bg = BackgroundRectangle(fake_truth_txt, color=BLACK, fill_opacity=0.9, buff=0.15)
+        fake_truth_label = VGroup(fake_truth_bg, fake_truth_txt)
+
+        fake_liar_txt = Text("Liar", font_size=30, color=SOFT_ORANGE)
+        fake_liar_txt.next_to(g1_icon, DOWN).shift(RIGHT * 0.3)
+        fake_liar_bg = BackgroundRectangle(fake_liar_txt, color=BLACK, fill_opacity=0.9, buff=0.15)
+        fake_liar_label = VGroup(fake_liar_bg, fake_liar_txt)
+
+        fake_freedom_txt = Text("Freedom", font_size=30, color=SOFT_GREEN)
+        fake_freedom_txt.next_to(door_b_icon, UP)
+        fake_freedom_bg = BackgroundRectangle(fake_freedom_txt, color=BLACK, fill_opacity=0.9, buff=0.15)
+        fake_freedom_label = VGroup(fake_freedom_bg, fake_freedom_txt)
+
+        fake_death_txt = Text("Death", font_size=30, color=SOFT_RED)
+        fake_death_txt.next_to(door_a_icon, UP)
+        fake_death_bg = BackgroundRectangle(fake_death_txt, color=BLACK, fill_opacity=0.9, buff=0.15)
+        fake_death_label = VGroup(fake_death_bg, fake_death_txt)
+
         self.play(
-            Indicate(g_liar_icon, color=NEON_RED, scale_factor=1.2), 
-            signal.animate.set_color(NEON_RED), 
-            run_time=0.8
+            FadeIn(fake_truth_label), 
+            FadeIn(fake_freedom_label), 
+            FadeIn(fake_liar_label), 
+            FadeIn(fake_death_label)
         )
-        
-        # К Правде
-        self.play(MoveAlongPath(signal, path2), run_time=1)
-        
-        # Правда пропускает
-        self.play(Indicate(g_truth_icon, color=NEON_BLUE, scale_factor=1.2), run_time=0.8)
-        
-        # В Дверь Смерти
-        self.play(MoveAlongPath(signal, path3), run_time=1)
-        
-        # Вспышка Двери
+
         self.play(
-            Wiggle(door_b_icon, scale_value=1.2), 
-            Flash(door_b_icon.get_bottom(), color=NEON_RED, line_length=0.5),
+            ReplacementTransform(player_sad, player_smile),
+            path1.animate.set_color(SOFT_GREEN),
+            path2.animate.set_color(SOFT_GREEN),
             run_time=1
         )
         self.wait(1)
 
         # ==========================================
-        # 5. ФИНАЛЬНЫЙ ВЫВОД И ТРАНСФОРМАЦИЯ ИГРОКА
+        # 4. ВОЗВРАТ К РЕАЛЬНОСТИ (Все встает на свои места)
         # ==========================================
-        conclusion = Text("TRUTH(LIAR(X)) = ALWAYS FALSE", font_size=32, color=YELLOW)
-        conclusion.shift(DOWN*1.5)
         
-        action = Text("CHOOSE THE OPPOSITE DOOR", font_size=36, color=NEON_GREEN, weight=BOLD)
-        action.next_to(conclusion, DOWN, buff=0.5)
+        # Запоминаем текущие (ложные) позиции, чтобы поменять ярлыки местами
+        pos_truth = fake_truth_label.get_center()
+        pos_liar = fake_liar_label.get_center()
+        pos_freedom = fake_freedom_label.get_center()
+        pos_death = fake_death_label.get_center()
+
+        self.play(
+            # 1) Ярлыки стражников и дверей меняются местами
+            fake_truth_label.animate.move_to(pos_liar),
+            fake_liar_label.animate.move_to(pos_truth),
+            fake_freedom_label.animate.move_to(pos_death),
+            fake_death_label.animate.move_to(pos_freedom),
+            # 2) Путь краснеет и игрок возвращается в грустное состояние
+            path1.animate.set_color(SOFT_RED),
+            path2.animate.set_color(SOFT_RED),
+            ReplacementTransform(player_smile, player_sad_return),
+            run_time=1.5
+        )
+        self.wait(1)
+
+        # ==========================================
+        # 5. ВВЕДЕНИЕ К РЕШЕНИЮ
+        # ==========================================
         
-        self.play(Write(conclusion))
-        self.play(FadeIn(action, shift=UP))
+        # 1) Путь удаляется
+        self.play(FadeOut(path1), FadeOut(path2), run_time=1)
         
-        # МАГИЯ: Превращаем грустного белого Игрока в зеленого радостного
-        self.play(ReplacementTransform(player_sad, player_smile), run_time=1)
-        self.play(Wiggle(player_smile)) # Радостное покачивание
+        # 2) Выделяются двери, остальное уходит в фон (opacity = 0.2)
+        background_elements = VGroup(
+            g1_icon, g2_icon, 
+            fake_truth_label, fake_liar_label, 
+            player_sad_return, p_txt
+        )
+        self.play(background_elements.animate.set_opacity(0.2), run_time=1)
+
+        # 3) Freedom трансформируется в TRUE, 4) Death в FALSE
+        true_txt = Text("TRUE", font_size=30, color=SOFT_GREEN)
+        true_txt.move_to(fake_freedom_label.get_center())
+        true_bg = BackgroundRectangle(true_txt, color=BLACK, fill_opacity=0.9, buff=0.15)
+        true_label = VGroup(true_bg, true_txt)
+
+        false_txt = Text("FALSE", font_size=30, color=SOFT_RED)
+        false_txt.move_to(fake_death_label.get_center())
+        false_bg = BackgroundRectangle(false_txt, color=BLACK, fill_opacity=0.9, buff=0.15)
+        false_label = VGroup(false_bg, false_txt)
+
+        self.play(ReplacementTransform(fake_freedom_label, true_label), run_time=1)
+        self.play(ReplacementTransform(fake_death_label, false_label), run_time=1)
+        self.wait(1)
+
+        # 5) Возвращаем в исходную позицию вид на общую схему
+        self.play(background_elements.animate.set_opacity(1), run_time=1)
+        self.wait(1)
+
+        # ==========================================
+        # 6. ЗАПРОС К СТРАЖНИКУ (ПРАВДА)
+        # ==========================================
         
-        self.wait(2)
+        # 1) Скручиваем прозрачность у всего, кроме Игрока и Правдолюбца
+        dim_group = VGroup(
+            door_a_icon, door_b_icon, 
+            true_label, false_label, 
+            g2_icon, fake_liar_label
+        )
+        self.play(dim_group.animate.set_opacity(0.2), run_time=1)
+
+        # 2) Путь протягивается к Правдолюбцу
+        path_truth = Line(player_sad_return.get_center(), g1_icon.get_center(), buff=0.9, color=GRAY).set_z_index(-1)
+        self.play(Create(path_truth), run_time=1)
+
+        # 3) Отправляется "TRUE?" (белым) и возвращается "TRUE" (зеленым)
+        q_true = Text("TRUE?", font_size=24, color=WHITE)
+        # Ставим текст строго на начало серой линии
+        q_true.move_to(path_truth.get_start()) 
+        
+        self.play(FadeIn(q_true, scale=0.5))
+        self.play(MoveAlongPath(q_true, path_truth), run_time=1)
+        
+        ans_true = Text("TRUE", font_size=24, color=SOFT_GREEN)
+        # Результат появляется строго на конце серой линии
+        ans_true.move_to(path_truth.get_end()) 
+        self.play(ReplacementTransform(q_true, ans_true), run_time=0.2)
+        
+        # Обратный путь по той же траектории
+        path_truth_rev = Line(path_truth.get_end(), path_truth.get_start(), color=GRAY).set_z_index(-1)
+        self.play(MoveAlongPath(ans_true, path_truth_rev), run_time=1)
+        self.play(FadeOut(ans_true, scale=0.5))
+
+        # ==========================================
+        # 7. ПРЕВРАЩЕНИЕ В ФУНКЦИЮ f(x) = x
+        # ==========================================
+        
+        # Запоминаем исходные позиции
+        g1_pos_original = g1_icon.get_center()
+        
+        # Привязываем линию к стражнику, чтобы она тянулась за ним
+        path_truth.add_updater(lambda m: m.become(Line(player_sad_return.get_center(), g1_icon.get_center(), buff=0.9, color=GRAY).set_z_index(-1)))
+        
+        # 1) Выезжает на центр (путь тянется за ним)
+        self.play(
+            g1_icon.animate.move_to(UP * 1.5),
+            fake_truth_label.animate.next_to(UP * 1.5, DOWN).shift(LEFT * 0.3),
+            run_time=1
+        )
+        path_truth.clear_updaters() # Отключаем привязку
+
+        # 2) Превращается в огромную формулу f(x) = x
+        formula_f = MathTex("f(", "x", ")", "=", "x", font_size=75, color=SOFT_BLUE).move_to(g1_icon.get_center())
+        self.play(
+            ReplacementTransform(VGroup(g1_icon, fake_truth_label), formula_f),
+            run_time=1
+        )
+        
+        # Обновляем линию под размер большой формулы
+        path_to_formula = Line(player_sad_return.get_center(), formula_f.get_center(), buff=1.2, color=GRAY).set_z_index(-1)
+        path_truth.become(path_to_formula)
+
+        # Отправляем запрос "TRUE?", который достигает формулы
+        q2_true = Text("TRUE?", font_size=24, color=WHITE).move_to(path_to_formula.get_start())
+        
+        self.play(FadeIn(q2_true, scale=0.5))
+        self.play(MoveAlongPath(q2_true, path_to_formula), run_time=1)
+        self.play(FadeOut(q2_true, scale=0.5))
+        
+        # 3) Шаг 1: Заменяет первый x на TRUE в f(x)
+        formula_f_sub1 = MathTex("f(", "\\text{TRUE}", ")", "=", "x", font_size=75, color=SOFT_BLUE).move_to(formula_f.get_center())
+        formula_f_sub1[1].set_color(SOFT_TEXT)
+        
+        self.play(TransformMatchingTex(formula_f, formula_f_sub1), run_time=1)
+        self.wait(0.5)
+        
+        # Шаг 2: Заменяет второй x на TRUE (f(TRUE) = TRUE)
+        formula_f_sub2 = MathTex("f(", "\\text{TRUE}", ")", "=", "\\text{TRUE}", font_size=75, color=SOFT_BLUE).move_to(formula_f_sub1.get_center())
+        formula_f_sub2[1].set_color(SOFT_TEXT)
+        formula_f_sub2[4].set_color(SOFT_TEXT)
+        
+        self.play(TransformMatchingTex(formula_f_sub1, formula_f_sub2), run_time=1)
+        self.wait(0.5)
+        
+        # 4) Возвращает TRUE по пути уже зеленым
+        ans2_true = Text("TRUE", font_size=24, color=SOFT_GREEN).move_to(path_to_formula.get_end())
+        path_from_formula = Line(path_to_formula.get_end(), path_to_formula.get_start(), color=GRAY).set_z_index(-1)
+        
+        self.play(FadeIn(ans2_true, scale=0.5))
+        self.play(MoveAlongPath(ans2_true, path_from_formula), run_time=1)
+        self.play(FadeOut(ans2_true, scale=0.5))
+
+        # 5) Сдвигается обратно в виде формулы (уменьшается) и одновременно исчезает путь
+        formula_f_final = MathTex("f(x) = x", font_size=60, color=SOFT_BLUE).move_to(formula_f_sub2.get_center())
+        self.play(ReplacementTransform(formula_f_sub2, formula_f_final), run_time=0.5)
+        
+        # Снова привязываем линию к маленькой формуле для обратного движения
+        path_truth.add_updater(lambda m: m.become(Line(player_sad_return.get_center(), formula_f_final.get_center(), buff=0.9, color=GRAY).set_z_index(-1)))
+        
+        self.play(
+            formula_f_final.animate.move_to(g1_pos_original),
+            FadeOut(path_truth),
+            run_time=1
+        )
+        path_truth.clear_updaters()
+
+        # 6) Возвращаем обратно всю непрозрачность
+        self.play(dim_group.animate.set_opacity(1), run_time=1)
+        self.wait(1)
