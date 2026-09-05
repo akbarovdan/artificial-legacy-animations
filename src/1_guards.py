@@ -47,15 +47,17 @@ class ProLogicFlowSVG(Scene):
         # ==========================================
         # 2. АНИМАЦИЯ ПОЯВЛЕНИЯ БАЗЫ
         # ==========================================
+        self.wait(3)
         self.play(
             DrawBorderThenFill(door_a_icon),
             DrawBorderThenFill(door_b_icon),
-            run_time=1
+            run_time=2
         )
+        self.wait(1)
         self.play(
             DrawBorderThenFill(g1_icon),
             DrawBorderThenFill(g2_icon),
-            run_time=1
+            run_time=2
         )
         self.play(DrawBorderThenFill(player_sad), FadeIn(p_txt, shift=UP))
         self.wait(1)
