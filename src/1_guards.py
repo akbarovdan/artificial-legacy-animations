@@ -51,9 +51,9 @@ class ProLogicFlowSVG(Scene):
         self.play(
             DrawBorderThenFill(door_a_icon),
             DrawBorderThenFill(door_b_icon),
-            run_time=2
+            run_time=3
         )
-        self.wait(1)
+        self.wait(3)
         self.play(
             DrawBorderThenFill(g1_icon),
             DrawBorderThenFill(g2_icon),
