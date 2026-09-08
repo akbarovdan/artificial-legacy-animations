@@ -42,9 +42,9 @@ class TreasureRiddle(Scene):
         # ==========================================
         # 2. РАЗЪЕЗЖАЮТСЯ И ОКРАШИВАЮТСЯ
         # ==========================================
-        pos_a = UP * 3.8
+        pos_a = UP * 3.5
         pos_b = DOWN * 0.2
-        pos_c = DOWN * 4.2
+        pos_c = DOWN * 4
 
         self.play(
             chest_a.animate.move_to(pos_a).set_color(BOX_A_COLOR),
@@ -78,7 +78,7 @@ class TreasureRiddle(Scene):
 
         # Показываем счетчик правды
         rule_txt = Text("TRUTH COUNT: 0/1", font_size=24, color=GOLD_COLOR, weight=BOLD)
-        rule_txt.to_edge(UP, buff=2)
+        rule_txt.to_edge(UP, buff=1.5)
         rule_bg = BackgroundRectangle(rule_txt, color=BLACK, fill_opacity=0.95, buff=0.15)
         rule_banner = VGroup(rule_bg, rule_txt)
         self.play(FadeIn(rule_banner, shift=DOWN), run_time=0.8)
