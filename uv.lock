@@ -8,10 +8,16 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "manim" },
+    { name = "numpy" },
+    { name = "scipy" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "manim", specifier = ">=0.21.0" }]
+requires-dist = [
+    { name = "manim", specifier = ">=0.21.0" },
+    { name = "numpy", specifier = ">=2.5.2" },
+    { name = "scipy", specifier = ">=1.18.1" },
+]
 
 [[package]]
 name = "audioop-lts"
