@@ -1,172 +1,187 @@
-from pathlib import Path
+from manim import *
 import numpy as np
-from scipy.io import wavfile
 
-# =============================================================
-# 0. НАСТРОЙКА ПУТЕЙ
-# =============================================================
-SCRIPT_PATH = Path(__file__).resolve()
-SCRIPT_NAME = SCRIPT_PATH.stem
-PROJECT_ROOT = SCRIPT_PATH.parents[2]
+config.pixel_width = 1080
+config.pixel_height = 1920
+config.frame_width = 9
+config.frame_height = 16
 
-OUTPUT_DIR = PROJECT_ROOT / "media" / "sounds" / SCRIPT_NAME
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-OUTPUT_FILE = OUTPUT_DIR / f"{SCRIPT_NAME}.wav"
+class TurtleFractalEvolution(Scene):
+    def construct(self):
+        self.camera.background_color = "#000000"
 
-# =============================================================
-# 1. ТОЧНЫЙ ТАЙМИНГ MANIM СЦЕНЫ (18.1 сек)
-# =============================================================
-SAMPLE_RATE = 44100
-TOTAL_DURATION = 18.15
-TOTAL_SAMPLES = int(SAMPLE_RATE * TOTAL_DURATION)
+        C_GREEN   = "#A6E3A1"  # Кох
+        C_YELLOW  = "#F9E2AF"  # Квадратичный Кох
+        C_BLUE    = "#89B4FA"  # Госпер
 
-audio_data = np.zeros((TOTAL_SAMPLES, 2), dtype=np.float32)
+        FONT_NAME = "Montserrat"
+        FONT_WEIGHT = "LIGHT"
 
-# =============================================================
-# 2. ЗВУКОВЫЕ ПРИМИТИВЫ (Синтез)
-# =============================================================
+        # ---------------------------------------------------------
+        # ДВИЖОК L-СИСТЕМ
+        # ---------------------------------------------------------
+        def get_shape(axiom, rules, angle_deg, iterations, color, stroke_width):
+            current_string = axiom
+            for _ in range(iterations):
+                current_string = "".join([rules.get(char, char) for char in current_string])
 
-def add_audio_segment(sound_mono, start_time_sec, pan_x=0.0):
-    """Микширует звук в общий мастер-трек со стереопанорамой."""
-    start_idx = int(start_time_sec * SAMPLE_RATE)
-    n_samples = len(sound_mono)
-    end_idx = min(start_idx + n_samples, TOTAL_SAMPLES)
-    length = end_idx - start_idx
-    
-    if length > 0 and start_idx < TOTAL_SAMPLES:
-        # Панорама: pan_x от -1.0 (лево) до +1.0 (право)
-        l_gain = np.sqrt(0.5 * (1.0 - pan_x))
-        r_gain = np.sqrt(0.5 * (1.0 + pan_x))
-        audio_data[start_idx:end_idx, 0] += sound_mono[:length] * l_gain
-        audio_data[start_idx:end_idx, 1] += sound_mono[:length] * r_gain
+            points = [ORIGIN]
+            current_angle = 0.0
+            current_pos = ORIGIN
+            
+            for char in current_string:
+                if char in ['F', 'L', 'R']:
+                    direction = np.array([np.cos(current_angle), np.sin(current_angle), 0])
+                    current_pos = current_pos + direction
+                    points.append(current_pos)
+                elif char == '+': current_angle += np.radians(angle_deg)
+                elif char == '-': current_angle -= np.radians(angle_deg)
 
-def synth_click(dur=0.04, freq=2800.0, volume=0.25):
-    """Тактильный щелчок клика мышки по клетке."""
-    n = int(SAMPLE_RATE * dur)
-    t = np.linspace(0, dur, n, endpoint=False)
-    noise = np.random.uniform(-0.8, 0.8, n)
-    sine = np.sin(2 * np.pi * freq * t) * 0.4
-    env = np.exp(-t * 180.0) # Резкая атака
-    return (noise * 0.6 + sine) * env * volume
+            pts = np.array(points)
+            x_min, x_max = pts[:, 0].min(), pts[:, 0].max()
+            y_min, y_max = pts[:, 1].min(), pts[:, 1].max()
+            
+            pts -= np.array([(x_max + x_min) / 2, (y_max + y_min) / 2, 0])
+            width = max(x_max - x_min, y_max - y_min)
+            if width > 0: pts *= (7.5 / width)
 
-def synth_death(dur=0.25, volume=0.28):
-    """Сухой мягкий звук угасания клетки в красный (смерть)."""
-    n = int(SAMPLE_RATE * dur)
-    t = np.linspace(0, dur, n, endpoint=False)
-    # Низкий тон + мягкий шум
-    sine_low = np.sin(2 * np.pi * 160.0 * t) * 0.5
-    noise = np.convolve(np.random.uniform(-0.5, 0.5, n), np.ones(8)/8, mode='same')
-    env = np.exp(-t * 22.0)
-    return (sine_low + noise) * env * volume
+            path = VMobject()
+            path.set_points_as_corners(pts)
+            path.set_stroke(color=color, width=stroke_width)
+            
+            glow = VMobject()
+            glow.set_points_as_corners(pts)
+            glow.set_stroke(color=color, width=stroke_width * 3.5, opacity=0.2)
+            
+            return VGroup(glow, path), pts
 
-def synth_birth(dur=0.35, volume=0.35):
-    """Яркий хрустальный мятно-зеленый звон рождения новой клетки."""
-    n = int(SAMPLE_RATE * dur)
-    t = np.linspace(0, dur, n, endpoint=False)
-    freq1 = 659.25  # E5
-    freq2 = 1318.5  # E6
-    sine = (np.sin(2 * np.pi * freq1 * t) + 0.3 * np.sin(2 * np.pi * freq2 * t))
-    env = np.minimum(t / 0.003, 1.0) * np.exp(-t * 12.0)
-    return sine * env * volume
+        # ---------------------------------------------------------
+        # ФАЗА 1: ЧЕРЕПАШКА И ЭВОЛЮЦИЯ КОХА
+        # ---------------------------------------------------------
+        k_rules = {"F": "F-F+F+FF-F-F+F"}
+        koch_1, pts_1 = get_shape("F-F-F-F", k_rules, 90, 1, C_GREEN, 4.0)
+        koch_2, _     = get_shape("F-F-F-F", k_rules, 90, 2, C_GREEN, 2.0)
+        koch_3, _     = get_shape("F-F-F-F", k_rules, 90, 3, C_GREEN, 1.0)
 
-def synth_blinker_tick(dur=0.15, high=True, volume=0.22):
-    """Ритмичный мягкий тик-так осциллятора (мигалки)."""
-    n = int(SAMPLE_RATE * dur)
-    t = np.linspace(0, dur, n, endpoint=False)
-    freq = 523.25 if high else 392.00 # C5 vs G4
-    sine = np.sin(2 * np.pi * freq * t)
-    env = np.exp(-t * 35.0)
-    return sine * env * volume
+        side_1_pts = pts_1[0:9]
+        side_center = np.array([
+            (side_1_pts[:, 0].max() + side_1_pts[:, 0].min()) / 2,
+            (side_1_pts[:, 1].max() + side_1_pts[:, 1].min()) / 2,
+            0
+        ])
+        pts_1_shifted = pts_1 - side_center
 
-# =============================================================
-# 3. ПОСТРОЕНИЕ ДОРОЖКИ СТРОГО ПО КАДРАМ MANIM
-# =============================================================
-print(f"Синтез аудио по кадрам для '{SCRIPT_NAME}'...")
+        rule_str = "F-F+F+FF-F-F+F"
+        turtle_lines = VGroup()
+        pt_idx = 0
+        for char in rule_str:
+            if char == 'F':
+                core = Line(pts_1_shifted[pt_idx], pts_1_shifted[pt_idx+1]).set_stroke(color=C_GREEN, width=4.0)
+                glow = Line(pts_1_shifted[pt_idx], pts_1_shifted[pt_idx+1]).set_stroke(color=C_GREEN, width=14.0, opacity=0.2)
+                turtle_lines.add(VGroup(glow, core))
+                pt_idx += 1
 
-# -------------------------------------------------------------
-# ЭТАП 1: ТРИ ПРАВИЛА (0.0с - 8.2с)
-# -------------------------------------------------------------
-# 1. Underpopulation: клетка краснеет на 0.8с
-add_audio_segment(synth_death(), start_time_sec=0.8, pan_x=-0.2)
+        prefix = Text("F → ", font=FONT_NAME, weight=FONT_WEIGHT, color=C_GREEN, font_size=42)
+        rule_chars = VGroup(*[Text(c, font=FONT_NAME, weight=FONT_WEIGHT, color=C_GREEN, font_size=42) for c in rule_str])
+        rule_chars.arrange(RIGHT, buff=0.08)
+        full_text = VGroup(prefix, rule_chars).arrange(RIGHT, buff=0.2).move_to(UP * 6)
 
-# 2. Overcrowding: клетка краснеет на 3.0с (на 2.2с + 0.8с)
-add_audio_segment(synth_death(), start_time_sec=3.0, pan_x=0.0)
+        self.play(FadeIn(prefix, shift=UP*0.2), run_time=0.6)
+        current_line_idx = 0
+        for i, char in enumerate(rule_str):
+            if char == 'F':
+                self.play(Create(turtle_lines[current_line_idx]), FadeIn(rule_chars[i], shift=UP*0.1), run_time=0.12)
+                current_line_idx += 1
+            else:
+                self.play(FadeIn(rule_chars[i], shift=UP*0.1), run_time=0.08)
 
-# 3. Reproduction: зеленая вспышка рождения на 5.2с (4.4с + 0.8с)
-add_audio_segment(synth_birth(), start_time_sec=5.2, pan_x=0.2)
+        self.wait(0.5)
 
-# -------------------------------------------------------------
-# ЭТАП 2: ФОНОВЫЙ ГУЛ ТЕМНОЙ СЕТКИ (9.3с - 18.1с)
-# -------------------------------------------------------------
-t_full = np.linspace(0, TOTAL_DURATION, TOTAL_SAMPLES, endpoint=False)
-ambient_drone = np.zeros_like(t_full)
+        rest_pts = pts_1_shifted[8:] 
+        rest_core = VMobject().set_points_as_corners(rest_pts).set_stroke(color=C_GREEN, width=4.0)
+        rest_glow = VMobject().set_points_as_corners(rest_pts).set_stroke(color=C_GREEN, width=14.0, opacity=0.2)
+        rest_group = VGroup(rest_glow, rest_core)
 
-# Гул включается на 9.3с при появлении сетки и плавно гаснет в конце
-mask_drone = (t_full >= 9.3)
-t_drone = t_full[mask_drone] - 9.3
-drone_sub = np.sin(2 * np.pi * 55.0 * t_drone) * 0.06
-drone_env = np.minimum(t_drone / 1.0, 1.0) * np.exp(-np.maximum(0, t_drone - 7.0) * 1.5)
-ambient_drone[mask_drone] = drone_sub * drone_env
+        self.play(Create(rest_group), run_time=1.5, rate_func=rate_functions.ease_in_out_sine)
+        self.wait(0.5)
 
-audio_data[:, 0] += ambient_drone
-audio_data[:, 1] += ambient_drone
+        full_koch_shifted_core = VMobject().set_points_as_corners(pts_1_shifted).set_stroke(color=C_GREEN, width=4.0)
+        full_koch_shifted_glow = VMobject().set_points_as_corners(pts_1_shifted).set_stroke(color=C_GREEN, width=14.0, opacity=0.2)
+        full_koch_shifted = VGroup(full_koch_shifted_glow, full_koch_shifted_core)
+        self.add(full_koch_shifted)
+        self.remove(*turtle_lines, rest_group)
 
-# -------------------------------------------------------------
-# ЭТАП 3: СЦЕНА 1 — ВЫМИРАНИЕ ПО ДИАГОНАЛИ (10.2с - 13.15с)
-# -------------------------------------------------------------
-# 5 щелчков прокликивания по диагонали (по 0.15с каждый)
-t_extinct_clicks = 10.2
-for i in range(5):
-    t_c = t_extinct_clicks + (i * 0.15)
-    pan = (i - 2) / 2.0 * 0.7  # панорама слева направо
-    pitch = 2400 + i * 200     # легкое повышение тона
-    add_audio_segment(synth_click(freq=pitch), start_time_sec=t_c, pan_x=pan)
+        label_k1 = Text("n = 1, δ = 90°", font=FONT_NAME, weight=FONT_WEIGHT, color=C_GREEN, font_size=42).move_to(UP * 6)
+        
+        self.play(
+            Transform(full_koch_shifted, koch_1),
+            FadeOut(full_text, shift=UP*0.5),
+            run_time=1.2, rate_func=rate_functions.ease_in_out_cubic
+        )
+        self.play(FadeIn(label_k1, shift=DOWN*0.3), run_time=0.5)
+        self.wait(0.3)
 
-# Симуляция вымирания за 3 шага:
-# Шаг 1: крайние гибнут на 11.35с
-add_audio_segment(synth_death(dur=0.18, volume=0.22), start_time_sec=11.35, pan_x=-0.6)
-add_audio_segment(synth_death(dur=0.18, volume=0.22), start_time_sec=11.35, pan_x=0.6)
+        label_k2 = Text("n = 2, δ = 90°", font=FONT_NAME, weight=FONT_WEIGHT, color=C_GREEN, font_size=42).move_to(UP * 6)
+        self.play(Transform(full_koch_shifted, koch_2), Transform(label_k1, label_k2), run_time=1.2)
+        
+        label_k3 = Text("n = 3, δ = 90°", font=FONT_NAME, weight=FONT_WEIGHT, color=C_GREEN, font_size=42).move_to(UP * 6)
+        self.play(Transform(full_koch_shifted, koch_3), Transform(label_k1, label_k3), run_time=1.5)
+        self.wait(0.8)
 
-# Шаг 2: следующие две гибнут на 11.95с (11.35 + 0.25 + 0.35)
-add_audio_segment(synth_death(dur=0.18, volume=0.24), start_time_sec=11.95, pan_x=-0.3)
-add_audio_segment(synth_death(dur=0.18, volume=0.24), start_time_sec=11.95, pan_x=0.3)
+        # ---------------------------------------------------------
+        # КИНЕМАТОГРАФИЧЕСКИЙ ПРОЛЕТ (ЗОМ) СКВОЗЬ КОХА
+        # ---------------------------------------------------------
+        # scale(35) растягивает линии далеко за пределы экрана, opacity(0) мягко гасит остатки
+        self.play(
+            full_koch_shifted.animate.scale(35).set_opacity(0), 
+            FadeOut(label_k1, shift=UP), 
+            run_time=1.5, 
+            rate_func=rate_functions.ease_in_expo
+        )
+        self.remove(full_koch_shifted)
 
-# Шаг 3: последняя центральная клетка гаснет на 12.55с (11.95 + 0.25 + 0.35)
-add_audio_segment(synth_death(dur=0.22, volume=0.28), start_time_sec=12.55, pan_x=0.0)
+        # ---------------------------------------------------------
+        # ФАЗА 2: КВАДРАТИЧНЫЙ КОХ (Желтый)
+        # ---------------------------------------------------------
+        kv_rules = {"F": "F-FF--F-F"}
+        kvar_1, _ = get_shape("F-F-F-F", kv_rules, 90, 1, C_YELLOW, 4.0)
+        kvar_2, _ = get_shape("F-F-F-F", kv_rules, 90, 2, C_YELLOW, 2.0)
+        kvar_3, _ = get_shape("F-F-F-F", kv_rules, 90, 3, C_YELLOW, 1.0)
 
-# (13.15с - 13.65с: 0.5 секунды абсолютной тишины на щелчки!)
+        # Появление из "бесконечности" (scale=0.01)
+        self.play(FadeIn(kvar_1, scale=0.01), run_time=1.2, rate_func=rate_functions.ease_out_expo)
+        self.wait(0.3)
+        self.play(Transform(kvar_1, kvar_2), run_time=1.0)
+        self.play(Transform(kvar_1, kvar_3), run_time=1.2)
+        self.wait(0.8)
+        
+        # Пролет сквозь желтую фигуру
+        self.play(
+            kvar_1.animate.scale(35).set_opacity(0), 
+            run_time=1.5, 
+            rate_func=rate_functions.ease_in_expo
+        )
+        self.remove(kvar_1)
 
-# -------------------------------------------------------------
-# ЭТАП 4: СЦЕНА 2 — МИГАЛКА И ВЕЧНЫЙ БЛОК (13.65с - 18.1с)
-# -------------------------------------------------------------
-# 6 щелчков прокликивания (по 0.15с каждый)
-t_loop_clicks = 13.65
-for i in range(6):
-    t_c = t_loop_clicks + (i * 0.15)
-    pan = -0.5 if i < 3 else 0.5  # первые 3 слева (мигалка), следующие 3 справа (блок)
-    pitch = 2200 + (i % 3) * 300
-    add_audio_segment(synth_click(freq=pitch), start_time_sec=t_c, pan_x=pan)
+        # ---------------------------------------------------------
+        # ФАЗА 3: ПЕАНО-ГОСПЕР (Синий)
+        # ---------------------------------------------------------
+        g_rules = {"L": "L+R++R-L--LL-R+", "R": "-L+RR++R+L--L-R"}
+        gosp_1, _ = get_shape("L", g_rules, 60, 1, C_BLUE, 5.0)
+        gosp_2, _ = get_shape("L", g_rules, 60, 2, C_BLUE, 2.5)
+        gosp_3, _ = get_shape("L", g_rules, 60, 3, C_BLUE, 1.0)
 
-# Эволюция 1 на 14.95с (13.65 + 6*0.15 + 0.4):
-# Мигалка стала вертикальной + 4-я клетка блока родилась зеленым!
-add_audio_segment(synth_blinker_tick(high=True), start_time_sec=14.95, pan_x=-0.5)
-add_audio_segment(synth_birth(dur=0.3, volume=0.32), start_time_sec=14.95, pan_x=0.5)
-
-# Эволюция 2 на 15.35с (14.95 + 0.4):
-# Мигалка горизонтальная + блок застыл
-add_audio_segment(synth_blinker_tick(high=False), start_time_sec=15.35, pan_x=-0.5)
-
-# Эволюция 3 на 15.75с (15.35 + 0.4):
-add_audio_segment(synth_blinker_tick(high=True), start_time_sec=15.75, pan_x=-0.5)
-
-# Эволюция 4 на 16.15с (15.75 + 0.4):
-add_audio_segment(synth_blinker_tick(high=False), start_time_sec=16.15, pan_x=-0.5)
-
-# Пиковая нормализация мастера
-peak = np.max(np.abs(audio_data))
-if peak > 0:
-    audio_data /= peak
-
-# Экспорт
-wavfile.write(str(OUTPUT_FILE), SAMPLE_RATE, (audio_data * 32767).astype(np.int16))
-print(f"Готово! Синхронный файл сохранен в:\n{OUTPUT_FILE}")
+        self.play(FadeIn(gosp_1, scale=0.01), run_time=1.2, rate_func=rate_functions.ease_out_expo)
+        self.wait(0.3)
+        self.play(Transform(gosp_1, gosp_2), run_time=1.0)
+        self.play(Transform(gosp_1, gosp_3), run_time=1.5)
+        self.wait(1.5)
+        
+        # Финальный сверх-глубокий пролет в темноту перед следующим роликом
+        self.play(
+            gosp_1.animate.scale(40).set_opacity(0), 
+            run_time=1.5, 
+            rate_func=rate_functions.ease_in_expo
+        )
+        self.remove(gosp_1)
+        self.wait(1.0) # Идеальная черная пустота в конце
