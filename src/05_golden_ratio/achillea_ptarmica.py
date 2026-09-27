@@ -186,7 +186,6 @@ class AchilleaFibonacci(Scene):
                 target_pt = node["pos"]
                 line_seg = DashedLine(prev_pt, target_pt, color=C_GUIDE, stroke_width=2.5, dashed_ratio=0.5)
                 
-                # На последнем этаже сразу цветут цветки
                 if is_last_tier:
                     marker = draw_flower(target_pt)
                 else:
@@ -214,7 +213,7 @@ class AchilleaFibonacci(Scene):
         self.wait(1.2)
 
         # ---------------------------------------------------------
-        # 4. ПОЛНОЕ ЗАТЕМНЕНИЕ В ЧЕРНУЮ ПУСТОТУ
+        # 4. ПОЛНОЕ ЗАТЕМНЕНИЕ В ЧЕРНУЮ ПУСТОТУ (НА 100%)
         # ---------------------------------------------------------
         orig_numbers_copies = VGroup(*[n.copy() for n in saved_fib_numbers])
         
@@ -226,11 +225,10 @@ class AchilleaFibonacci(Scene):
         self.wait(0.3)
 
         # ---------------------------------------------------------
-        # 5. ВЕРТИКАЛЬНАЯ ЛЕНТА (РАСШИРЕНА ДЛЯ БЕСКОНЕЧНОГО ПОЛЕТА)
+        # 5. ВЕРТИКАЛЬНАЯ ЛЕНТА (26 ЧИСЕЛ)
         # ---------------------------------------------------------
-        # 28 чисел Фибоначчи (уходят далеко за сотни тысяч)
         fib_vals = [1, 1]
-        for _ in range(26):
+        for _ in range(24):
             fib_vals.append(fib_vals[-1] + fib_vals[-2])
 
         col_x = -2.7
@@ -245,19 +243,23 @@ class AchilleaFibonacci(Scene):
 
         reel_group = VGroup(*reel_mobjects)
 
+        # Контроллер прозрачности для плавного растворения ленты
+        reel_fade_mult = ValueTracker(1.0)
+
         def reel_focus_updater(mob):
+            mult = reel_fade_mult.get_value()
             for item in mob:
                 dist = abs(item.get_center()[1])
                 if dist < 0.65:
-                    item.set_opacity(1.0)
+                    item.set_opacity(1.0 * mult)
                 elif dist < 1.3:
                     t = (dist - 0.65) / 0.65
-                    item.set_opacity(1.0 - 0.82 * t)
+                    item.set_opacity((1.0 - 0.82 * t) * mult)
                 elif dist < 3.8:
-                    item.set_opacity(0.18)
+                    item.set_opacity(0.18 * mult)
                 elif dist < 5.0:
                     t = (dist - 3.8) / 1.2
-                    item.set_opacity(max(0.0, 0.18 * (1.0 - t)))
+                    item.set_opacity(max(0.0, 0.18 * (1.0 - t)) * mult)
                 else:
                     item.set_opacity(0.0)
 
@@ -289,20 +291,17 @@ class AchilleaFibonacci(Scene):
         self.wait(0.4)
 
         # ---------------------------------------------------------
-        # 6. ПОСТЕПЕННЫЙ РАЗГОН (22 ШАГА)
+        # 6. ЧЕТКИЙ ХОД ВЫЧИСЛЕНИЙ (ШАГИ 1..17)
         # ---------------------------------------------------------
         step_times = [
             0.55, 0.50, 0.45,                     # 1..3 (медленно)
             0.38, 0.34, 0.30, 0.26, 0.22, 0.19,  # 4..9
             0.16, 0.14, 0.13, 0.12, 0.11, 0.10,  # 10..15
-            0.09, 0.08, 0.08, 0.07, 0.07, 0.06   # 16..21 (быстрый поток)
+            0.09, 0.08                            # 16..17
         ]
 
-        total_steps = len(step_times)
-
-        for step in range(1, total_steps + 1):
+        for step in range(1, 18):
             t_dur = step_times[step - 1]
-            
             num_val = fib_vals[step + 1]
             den_val = fib_vals[step]
             ratio = num_val / den_val
@@ -314,10 +313,10 @@ class AchilleaFibonacci(Scene):
                 res_str = f"= {ratio:.1f}"
             elif step < 5:
                 res_str = f"≈ {ratio:.3f}..."
-            elif step < 17:
+            elif step < 16:
                 res_str = f"≈ {ratio:.5f}..."
             else:
-                # Фиксация точной строки
+                # Фиксация строгого значения
                 res_str = "≈ 1.618..."
 
             next_res = Text(res_str, font=FONT_NAME, weight=FONT_WEIGHT, color=C_GOLD, font_size=38)
@@ -339,34 +338,64 @@ class AchilleaFibonacci(Scene):
             curr_num, curr_den, curr_res = next_num, next_den, next_res
 
         # ---------------------------------------------------------
-        # 7. НЕПРЕРЫВНЫЙ ПОЛЕТ ВВЕРХ В БЕСКОНЕЧНОСТЬ (БЕЗ ОСТАНОВКИ)
+        # 7. НЕПРЕРЫВНЫЙ ПЕРЕСЧЕТ С УХОДОМ В FADE OUT + ВЫПЛЫВАНИЕ В ЦЕНТР
         # ---------------------------------------------------------
-        # Отключаем локальный фокус, чтобы вся лента могла улететь ввысь
+        # Пересчет ПРОДОЛЖАЕТСЯ еще 6 шагов (до 75025/46368), но на каждом шаге
+        # вся математическая обвязка становится всё прозрачнее и прозрачнее,
+        # а число ≈ 1.618... плавно выплывает строго в центр экрана!
+        
+        fade_opacities = [0.70, 0.48, 0.30, 0.16, 0.06, 0.0]
+        start_res_pos = curr_res.get_center()
+        
+        # Смещение к центру и масштабирование за 6 микро-шагов
+        step_shift = (ORIGIN - start_res_pos) / 6.0
+        step_scale = (1.4) ** (1.0 / 6.0)
+
+        for j in range(6):
+            step = 18 + j
+            num_val = fib_vals[step + 1]
+            den_val = fib_vals[step]
+            op = fade_opacities[j]
+
+            next_num = Text(str(num_val), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=38).move_to(num_pos)
+            next_den = Text(str(den_val), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=38).move_to(den_pos)
+            next_num.set_opacity(op)
+            next_den.set_opacity(op)
+
+            # Числа продолжают двигаться и считать, фон гаснет, число плывет в центр
+            self.play(
+                reel_group.animate.shift(DOWN * row_dy),
+                reel_fade_mult.animate.set_value(op),
+                frac_line.animate.set_opacity(op),
+                eq_sign.animate.set_opacity(op),
+                curr_num.animate.shift(DOWN * 0.25).set_opacity(0),
+                curr_den.animate.shift(DOWN * 0.25).set_opacity(0),
+                FadeIn(next_num, shift=DOWN * 0.25),
+                FadeIn(next_den, shift=DOWN * 0.25),
+                curr_res.animate.shift(step_shift).scale(step_scale),
+                run_time=0.11,
+                rate_func=linear
+            )
+
+            self.remove(curr_num, curr_den)
+            curr_num, curr_den = next_num, next_den
+
+        # Удаляем окончательно растворившийся аппарат
         reel_group.clear_updaters()
+        self.remove(reel_group, frac_line, eq_sign, curr_num, curr_den)
 
-        # Собираем всю математическую формулу и ленту чисел
-        math_stream = VGroup(reel_group, frac_line, eq_sign, curr_num, curr_den)
+        # Выравниваем число строго в абсолютный центр ORIGIN
+        curr_res.move_to(ORIGIN)
 
-        # БЕЗ ПАУЗЫ: Число плавно отрывается и встает строго в центр экрана,
-        # а лента чисел и дробь на полной скорости УЛЕТАЮТ ВВЕРХ В КОСМОС,
-        # растворяясь в бесконечности!
-        self.play(
-            curr_res.animate.move_to(ORIGIN).scale(1.4),
-            math_stream.animate.shift(UP * 13).set_opacity(0),
-            run_time=1.4,
-            rate_func=rate_functions.ease_in_quad
-        )
-        self.remove(math_stream)
-
-        # Одинокое золотое число строго в центре на чистом черном фоне на 2 секунды
+        # ФИКСАЦИЯ НА ЧИСТОМ ЧЕРНОМ ФОНЕ СТРОГО НА 2 СЕКУНДЫ
         self.wait(2.0)
 
         # Число плавно исчезает
-        self.play(FadeOut(curr_res), run_time=0.6)
+        self.play(FadeOut(curr_res), run_time=0.5)
         self.wait(0.2)
 
         # ---------------------------------------------------------
-        # 8. ВОЗВРАЩЕНИЕ ЦВЕТКА И ФИНАЛ
+        # 8. ВОЗВРАЩЕНИЕ ЦВЕТКА И ФИНАЛ СЦЕНЫ
         # ---------------------------------------------------------
         # Дерево расцветает в 100% яркости
         self.play(FadeIn(all_tree_mobjects), run_time=1.0)
