@@ -19,20 +19,20 @@ class AchilleaFibonacci(Scene):
         C_FLOWER_P = "#CDD6F4" 
         C_PEACH    = "#FAB387"    
         C_GUIDE    = "#585B70"    
-        C_GOLD     = "#F9E2AF"     
+        C_GOLD     = "#F9E2AF"
+        C_WHITE    = "#CDD6F4"
         
         FONT_NAME   = "Montserrat"
         FONT_WEIGHT = "LIGHT"  
 
         # ---------------------------------------------------------
-        # 2. АЛГОРИТМ ПЛАНАРНОГО ГРАФА (0 ПЕРЕСЕЧЕНИЙ)
+        # 2. АЛГОРИТМ ПЛАНАРНОГО ГРАФА (ИДЕАЛЬНОЕ ДЕРЕВО)
         # ---------------------------------------------------------
         nodes = {0: {"id": 0, "type": "Y", "tier": 0, "dir": 1, "parent": None, "children": []}}
         tiers = [[0]]
         next_id = 1
-        max_tiers = 7 # Ярусы: 0(1), 1(1), 2(2), 3(3), 4(5), 5(8), 6(13)
+        max_tiers = 7 
 
-        # 2.1. Создаем связи
         for i in range(max_tiers - 1):
             current_tier = tiers[-1]
             next_tier = []
@@ -58,7 +58,6 @@ class AchilleaFibonacci(Scene):
                     next_tier.append(id_m)
             tiers.append(next_tier)
 
-        # 2.2. Расставляем листья по оси X 
         leaves = []
         def dfs(node_id):
             if not nodes[node_id]["children"]:
@@ -68,14 +67,18 @@ class AchilleaFibonacci(Scene):
                     dfs(child_id)
         dfs(0)
         
-        dx_leaf = 1.0   # Ширина шага по X
-        dy_tier = 2.8   # <-- СДЕЛАЛИ ЭТАЖИ В 1.5 РАЗА ВЫШЕ (было 2.0)
-
+        dx_leaf = 0.85 
         for idx, leaf_id in enumerate(leaves):
             nodes[leaf_id]["x"] = idx * dx_leaf
-            nodes[leaf_id]["y"] = nodes[leaf_id]["tier"] * dy_tier
+            
+        mean_x = sum(nodes[l]["x"] for l in leaves) / len(leaves)
+        for leaf_id in leaves:
+            nodes[leaf_id]["x"] -= mean_x
 
-        # 2.3. Вычисляем X родителей (сверху вниз)
+        dy_tier = 3.2 
+        for n in nodes.values():
+            n["y"] = n["tier"] * dy_tier
+
         for tier in reversed(tiers[:-1]):
             for node_id in tier:
                 node = nodes[node_id]
@@ -89,19 +92,13 @@ class AchilleaFibonacci(Scene):
                         node["x"] = x1 * 0.7 + x2 * 0.3
                     else:
                         node["x"] = x1 * 0.3 + x2 * 0.7
-                node["y"] = node["tier"] * dy_tier
 
-        # ---------------------------------------------------------
-        # 3. ИДЕАЛЬНОЕ ЦЕНТРИРОВАНИЕ И РАСТЯГИВАНИЕ ДЛЯ 9:16
-        # ---------------------------------------------------------
         raw_min_x = min(n["x"] for n in nodes.values())
         raw_max_x = max(n["x"] for n in nodes.values())
         raw_w = raw_max_x - raw_min_x
         raw_h = max_tiers * dy_tier
         
-        # Разрешаем дереву занимать 13.5 юнитов в высоту (из 16)
-        scale_factor = min(6.5 / raw_w, 13.5 / raw_h)
-        
+        scale_factor = min(5.5 / raw_w, 14.0 / raw_h)
         for n in nodes.values():
             n["sx"] = n["x"] * scale_factor
             n["sy"] = n["y"] * scale_factor
@@ -109,21 +106,12 @@ class AchilleaFibonacci(Scene):
         s_min_x = min(n["sx"] for n in nodes.values())
         s_max_x = max(n["sx"] for n in nodes.values())
         
-        # Координата X для колонки цифр (слева от веток)
         number_x = s_min_x - 1.2
+        bbox_cx = (number_x - 0.5 + s_max_x + 0.5) / 2
+        bbox_cy = (0 + max(n["sy"] for n in nodes.values())) / 2
         
-        # Вычисляем габариты
-        bbox_min_x = number_x - 0.5 
-        bbox_max_x = s_max_x + 0.5  
-        bbox_cx = (bbox_min_x + bbox_max_x) / 2
-        
-        bbox_min_y = 0
-        bbox_max_y = max(n["sy"] for n in nodes.values())
-        bbox_cy = (bbox_min_y + bbox_max_y) / 2
-        
-        # Центрируем. Смещаем чуть-чуть вниз (-0.4), чтобы цветы не упирались в потолок
         shift_x = -bbox_cx
-        shift_y = -0.4 - bbox_cy
+        shift_y = -0.5 - bbox_cy
         
         for n in nodes.values():
             n["pos"] = np.array([n["sx"] + shift_x, n["sy"] + shift_y, 0])
@@ -140,34 +128,33 @@ class AchilleaFibonacci(Scene):
             return flower
 
         # ---------------------------------------------------------
-        # 4. АНИМАЦИЯ: РОСТ И СЧЕТ
+        # 3. АНИМАЦИЯ РОСТА ДЕРЕВА
         # ---------------------------------------------------------
         self.wait(0.4)
-        
         root_node = nodes[0]
-        root_dot = Dot(root_node["pos"], color=C_STEM, radius=0.1)
+        root_pos = root_node["pos"]
+        
+        root_dot = Dot(root_pos, color=C_STEM, radius=0.1)
         self.play(FadeIn(root_dot, scale=0.5), run_time=0.4)
 
         all_tree_mobjects = VGroup(root_dot)
         saved_fib_numbers = []
 
-        # Ярус 0 (Корень)
         fib_num_root = Text("1", font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=42)
-        fib_num_root.move_to(np.array([number_x_pos, root_node["pos"][1], 0]))
+        fib_num_root.move_to(np.array([number_x_pos, root_pos[1], 0]))
         saved_fib_numbers.append(fib_num_root)
         
         self.play(FadeIn(fib_num_root, shift=RIGHT * 0.2), run_time=0.25)
         
         prev_pt_root = fib_num_root.get_right() + RIGHT * 0.2
-        line_seg_root = DashedLine(prev_pt_root, root_node["pos"], color=C_GUIDE, stroke_width=2.5, dashed_ratio=0.5)
-        marker_root = Dot(root_node["pos"], radius=0.12, color=C_PEACH)
+        line_seg_root = DashedLine(prev_pt_root, root_pos, color=C_GUIDE, stroke_width=2.5, dashed_ratio=0.5)
+        marker_root = Dot(root_pos, radius=0.12, color=C_PEACH)
         
         self.play(Create(line_seg_root), run_time=0.25, rate_func=linear)
         self.play(FadeIn(marker_root, scale=2.0), run_time=0.12)
         all_tree_mobjects.add(line_seg_root, marker_root)
         self.wait(0.15)
 
-        # Остальные ярусы
         for i in range(1, len(tiers)):
             tier_nodes = [nodes[nid] for nid in tiers[i]]
             y_level = tier_nodes[0]["pos"][1]
@@ -177,8 +164,7 @@ class AchilleaFibonacci(Scene):
             for node in tier_nodes:
                 start_pos = nodes[node["parent"]]["pos"]
                 end_pos = node["pos"]
-                # Сделал ствол чуть толще у основания (7.5 вместо 6.5), так как он стал длиннее
-                thickness = max(1.5, 7.5 - i * 0.8)
+                thickness = max(1.5, 6.0 - i * 0.6)
                 branches.add(Line(start_pos, end_pos, color=C_STEM, stroke_width=thickness))
             
             all_tree_mobjects.add(branches)
@@ -224,93 +210,153 @@ class AchilleaFibonacci(Scene):
             all_tree_mobjects.add(guides_and_markers)
             self.wait(0.15)
 
+        self.wait(1.0)
+
+        # ---------------------------------------------------------
+        # 4. ДЕРЕВО ЗАТУХАЕТ, ЦИФРЫ ВЫСТРАИВАЮТСЯ В РЯД
+        # ---------------------------------------------------------
+        orig_numbers_copies = VGroup(*[n.copy() for n in saved_fib_numbers])
+        self.play(all_tree_mobjects.animate.set_opacity(0.15), run_time=0.8)
+
+        # Расширенная последовательность (25 чисел)
+        fib_seq_ext = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025]
+        
+        seq_texts_ext = VGroup(*[Text(str(val), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46) for val in fib_seq_ext])
+        seq_texts_ext.arrange(RIGHT, buff=0.5)
+        
+        # Центрируем первые 7
+        center_of_first_7 = seq_texts_ext[:7].get_center()
+        seq_texts_ext.shift(UP * 3.5 - center_of_first_7)
+
+        self.play(
+            *[ReplacementTransform(saved_fib_numbers[i], seq_texts_ext[i]) for i in range(7)], 
+            FadeIn(seq_texts_ext[7:], shift=LEFT*0.3),
+            run_time=1.5, 
+            rate_func=rate_functions.ease_in_out_cubic
+        )
+        self.wait(0.5)
+
+        # ---------------------------------------------------------
+        # 5. МАТЕМАТИКА И МЕДЛЕННЫЙ СТАРТ
+        # ---------------------------------------------------------
+        frac_line = Line(LEFT*1.2, RIGHT*1.2, color=C_WHITE, stroke_width=3).move_to(DOWN * 0.5 + LEFT * 1.5)
+        num_pos = frac_line.get_center() + UP * 0.6
+        den_pos = frac_line.get_center() + DOWN * 0.6
+        eq_sign = Text("=", font=FONT_NAME, weight=FONT_WEIGHT, color=C_WHITE, font_size=46).next_to(frac_line, RIGHT, buff=0.4)
+        
+        box = SurroundingRectangle(VGroup(seq_texts_ext[0], seq_texts_ext[1]), color=C_GOLD, corner_radius=0.1, buff=0.15)
+        self.play(Create(box))
+
+        curr_num = Text("1", font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46).move_to(num_pos)
+        curr_den = Text("1", font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46).move_to(den_pos)
+        curr_res = Text("1.0", font=FONT_NAME, weight=FONT_WEIGHT, color=C_GOLD, font_size=46).next_to(eq_sign, RIGHT, buff=0.4)
+        
+        self.play(
+            FadeIn(frac_line), FadeIn(eq_sign),
+            TransformFromCopy(seq_texts_ext[1], curr_num),
+            TransformFromCopy(seq_texts_ext[0], curr_den),
+            FadeIn(curr_res, shift=DOWN*0.2)
+        )
+        self.wait(0.5)
+
+        # МЕДЛЕННЫЕ ШАГИ ДЛЯ ЧИТАЕМОСТИ (до 5/3)
+        val_strs = ["2.0", "1.5", "1.666..."]
+        for i in range(1, 4):
+            new_box = SurroundingRectangle(VGroup(seq_texts_ext[i], seq_texts_ext[i+1]), color=C_GOLD, corner_radius=0.1, buff=0.15)
+            new_num = Text(str(fib_seq_ext[i+1]), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46).move_to(num_pos)
+            new_den = Text(str(fib_seq_ext[i]), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46).move_to(den_pos)
+            new_res = Text(val_strs[i-1], font=FONT_NAME, weight=FONT_WEIGHT, color=C_GOLD, font_size=46).next_to(eq_sign, RIGHT, buff=0.4)
+            
+            # Четкий механический счетчик
+            self.play(
+                Transform(box, new_box),
+                curr_num.animate.shift(UP*0.4).set_opacity(0),
+                curr_den.animate.shift(UP*0.4).set_opacity(0),
+                curr_res.animate.shift(UP*0.4).set_opacity(0),
+                FadeIn(new_num, shift=UP*0.4),
+                FadeIn(new_den, shift=UP*0.4),
+                FadeIn(new_res, shift=UP*0.4),
+                run_time=0.6
+            )
+            self.remove(curr_num, curr_den, curr_res)
+            curr_num, curr_den, curr_res = new_num, new_den, new_res
+            self.wait(0.4)
+
+        # ---------------------------------------------------------
+        # 6. БЕЗУПРЕЧНЫЙ ТАБЛО-СЛАЙД (БЕЗ КАШИ И ШЛЕЙФОВ)
+        # ---------------------------------------------------------
+        # Убираем старые текстовые объекты из движка, они нам больше не нужны
+        self.remove(curr_num, curr_den, curr_res)
+
+        # Создаем трекер - он будет указывать, на каком мы индексе в массиве
+        tracker = ValueTracker(3.0)
+        
+        # Функция, которая вычисляет, куда должна сдвинуться длинная лента
+        def get_shift():
+            idx = int(tracker.get_value())
+            # Центрируем рамку на текущих 2-х элементах
+            target_center = VGroup(seq_texts_ext[idx], seq_texts_ext[idx+1]).get_center()
+            return ORIGIN[0] - target_center[0]
+
+        # Привязываем движение ленты и рамки к трекеру
+        seq_texts_ext.add_updater(lambda m: m.set_x(m.get_x() + get_shift()))
+        
+        # Эти элементы (Счетчик) перерисовываются СТРОГО 1 раз за кадр. 
+        # Никаких Transform, никаких шлейфов! Чистое цифровое табло.
+        dynamic_num = always_redraw(lambda: Text(str(fib_seq_ext[int(tracker.get_value()) + 1]), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46).move_to(num_pos))
+        dynamic_den = always_redraw(lambda: Text(str(fib_seq_ext[int(tracker.get_value())]), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46).move_to(den_pos))
+        
+        # Динамический результат. Если трекер дошел до конца - выводим заветное число
+        def get_res_text():
+            val = tracker.get_value()
+            idx = int(val)
+            if val < 21.0:
+                calc = fib_seq_ext[idx + 1] / fib_seq_ext[idx]
+                return Text(f"{calc:.6f}...", font=FONT_NAME, weight=FONT_WEIGHT, color=C_GOLD, font_size=46).next_to(eq_sign, RIGHT, buff=0.4)
+            else:
+                return Text("1.61803398...", font=FONT_NAME, weight="BOLD", color=C_GOLD, font_size=48).next_to(eq_sign, RIGHT, buff=0.4)
+
+        dynamic_res = always_redraw(get_res_text)
+
+        self.add(dynamic_num, dynamic_den, dynamic_res)
+
+        # КИМЕНАТОГРАФИЧНЫЙ СЛАЙД
+        # Лента летит до 22-го индекса (до десятков тысяч), постепенно замедляясь в конце
+        self.play(
+            tracker.animate.set_value(22.0),
+            run_time=3.5,
+            rate_func=rate_functions.ease_in_out_cubic
+        )
         self.wait(1.5)
 
         # ---------------------------------------------------------
-        # 5. МАГИЧЕСКИЙ ПЕРЕХОД: ДЕРЕВО ИСЧЕЗАЕТ, 7 ЦИФР ОСТАЮТСЯ
+        # 7. ВОЗВРАЩЕНИЕ ЦВЕТКА (МЯГКИЙ ФИНАЛ)
         # ---------------------------------------------------------
-        self.play(FadeOut(all_tree_mobjects), run_time=0.8)
-        self.wait(0.3)
-
-        # ---------------------------------------------------------
-        # 6. ИДЕАЛЬНАЯ ЗОЛОТАЯ СПИРАЛЬ ФИБОНАЧЧИ
-        # ---------------------------------------------------------
-        fib_seq = [1, 1, 2, 3, 5, 8, 13]
-        sq_scale = 0.52 
-        
-        squares = VGroup()
-        arcs = []
-        
-        dirs   = [RIGHT, UP, LEFT, DOWN]
-        aligns = [UP, LEFT, DOWN, RIGHT]
-        
-        arc_centers_keys = [UR, UL, DL, DR]
-        arc_start_angles = [PI, -PI / 2, 0.0, PI / 2]
-        
-        for i, val in enumerate(fib_seq):
-            side = val * sq_scale
-            sq = Square(side_length=side, color=C_GUIDE, stroke_width=2.0)
-            
-            if i == 0:
-                sq.move_to(ORIGIN)
-            else:
-                dir_idx = (i - 1) % 4
-                sq.next_to(squares, dirs[dir_idx], buff=0)
-                sq.align_to(squares, aligns[dir_idx])
-                
-            squares.add(sq)
-            
-            c_idx = i % 4
-            center_point = sq.get_corner(arc_centers_keys[c_idx])
-            start_ang = arc_start_angles[c_idx]
-            
-            arc = Arc(
-                radius=side,
-                start_angle=start_ang,
-                angle=PI / 2,
-                arc_center=center_point,
-                color=C_GOLD,
-                stroke_width=4.0
-            )
-            arcs.append(arc)
-
-        shift_vector = ORIGIN - squares.get_center()
-        squares.shift(shift_vector)
-        for a in arcs:
-            a.shift(shift_vector)
-
-        spiral_path = VMobject(color=C_GOLD, stroke_width=4.0)
-        for a in arcs:
-            spiral_path.append_vectorized_mobject(a)
-
-        spiral_glow = spiral_path.copy().set_stroke(color=C_GOLD, width=12.0, opacity=0.25)
-
-        # 7 цифр летят в свои квадраты
-        morph_anims = []
-        for i in range(len(fib_seq)):
-            text_obj = saved_fib_numbers[i]
-            target_pos = squares[i].get_center()
-            target_scale = min(1.2, (fib_seq[i] * sq_scale) / (text_obj.height + 1e-5) * 0.45)
-            morph_anims.append(
-                text_obj.animate.move_to(target_pos).scale(target_scale)
-            )
-
-        self.play(*morph_anims, run_time=1.4, rate_func=rate_functions.ease_in_out_cubic)
-        
-        self.play(Create(squares), run_time=1.0)
-        
-        self.play(
-            Create(spiral_glow, rate_func=linear),
-            Create(spiral_path, rate_func=linear),
-            run_time=2.5
-        )
-        self.wait(2.2)
+        # Отключаем апдейтеры, чтобы чисто убрать объекты
+        dynamic_num.clear_updaters()
+        dynamic_den.clear_updaters()
+        dynamic_res.clear_updaters()
+        seq_texts_ext.clear_updaters()
 
         self.play(
-            FadeOut(squares),
-            FadeOut(spiral_path),
-            FadeOut(spiral_glow),
-            FadeOut(VGroup(*saved_fib_numbers)),
+            FadeOut(seq_texts_ext, shift=UP*0.2),
+            FadeOut(box, scale=1.1),
+            FadeOut(dynamic_num, shift=UP*0.2), 
+            FadeOut(dynamic_den, shift=DOWN*0.2), 
+            FadeOut(dynamic_res), 
+            FadeOut(frac_line), 
+            FadeOut(eq_sign),
+            all_tree_mobjects.animate.set_opacity(1.0),
             run_time=1.2
+        )
+        
+        # Возвращаем 7 оригинальных цифр на ветки
+        self.play(*[FadeIn(n) for n in orig_numbers_copies], run_time=0.8)
+        self.wait(2.0)
+
+        self.play(
+            FadeOut(Group(*self.mobjects), scale=1.05),
+            run_time=1.5,
+            rate_func=rate_functions.ease_in_cubic
         )
         self.wait(0.5)
