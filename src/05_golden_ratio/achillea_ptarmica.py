@@ -1,7 +1,7 @@
 from manim import *
 import numpy as np
 
-# Вертикальный формат Shorts 9:16
+# Вертикальный формат Shorts 9:16 (1080x1920)
 config.pixel_width = 1080
 config.pixel_height = 1920
 config.frame_width = 9
@@ -26,7 +26,7 @@ class AchilleaFibonacci(Scene):
         FONT_WEIGHT = "LIGHT"  
 
         # ---------------------------------------------------------
-        # 2. АЛГОРИТМ ПЛАНАРНОГО ГРАФА (ИДЕАЛЬНОЕ ДЕРЕВО)
+        # 2. АЛГОРИТМ ПЛАНАРНОГО ГРАФА ДЕРЕВА
         # ---------------------------------------------------------
         nodes = {0: {"id": 0, "type": "Y", "tier": 0, "dir": 1, "parent": None, "children": []}}
         tiers = [[0]]
@@ -186,6 +186,7 @@ class AchilleaFibonacci(Scene):
                 target_pt = node["pos"]
                 line_seg = DashedLine(prev_pt, target_pt, color=C_GUIDE, stroke_width=2.5, dashed_ratio=0.5)
                 
+                # На последнем этаже сразу цветут цветки
                 if is_last_tier:
                     marker = draw_flower(target_pt)
                 else:
@@ -210,153 +211,172 @@ class AchilleaFibonacci(Scene):
             all_tree_mobjects.add(guides_and_markers)
             self.wait(0.15)
 
-        self.wait(1.0)
+        self.wait(1.2)
 
         # ---------------------------------------------------------
-        # 4. ДЕРЕВО ЗАТУХАЕТ, ЦИФРЫ ВЫСТРАИВАЮТСЯ В РЯД
+        # 4. ПОЛНОЕ ЗАТЕМНЕНИЕ В ЧЕРНУЮ ПУСТОТУ
         # ---------------------------------------------------------
         orig_numbers_copies = VGroup(*[n.copy() for n in saved_fib_numbers])
-        self.play(all_tree_mobjects.animate.set_opacity(0.15), run_time=0.8)
-
-        # Расширенная последовательность (25 чисел)
-        fib_seq_ext = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025]
-        
-        seq_texts_ext = VGroup(*[Text(str(val), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46) for val in fib_seq_ext])
-        seq_texts_ext.arrange(RIGHT, buff=0.5)
-        
-        # Центрируем первые 7
-        center_of_first_7 = seq_texts_ext[:7].get_center()
-        seq_texts_ext.shift(UP * 3.5 - center_of_first_7)
-
-        self.play(
-            *[ReplacementTransform(saved_fib_numbers[i], seq_texts_ext[i]) for i in range(7)], 
-            FadeIn(seq_texts_ext[7:], shift=LEFT*0.3),
-            run_time=1.5, 
-            rate_func=rate_functions.ease_in_out_cubic
-        )
-        self.wait(0.5)
-
-        # ---------------------------------------------------------
-        # 5. МАТЕМАТИКА И МЕДЛЕННЫЙ СТАРТ
-        # ---------------------------------------------------------
-        frac_line = Line(LEFT*1.2, RIGHT*1.2, color=C_WHITE, stroke_width=3).move_to(DOWN * 0.5 + LEFT * 1.5)
-        num_pos = frac_line.get_center() + UP * 0.6
-        den_pos = frac_line.get_center() + DOWN * 0.6
-        eq_sign = Text("=", font=FONT_NAME, weight=FONT_WEIGHT, color=C_WHITE, font_size=46).next_to(frac_line, RIGHT, buff=0.4)
-        
-        box = SurroundingRectangle(VGroup(seq_texts_ext[0], seq_texts_ext[1]), color=C_GOLD, corner_radius=0.1, buff=0.15)
-        self.play(Create(box))
-
-        curr_num = Text("1", font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46).move_to(num_pos)
-        curr_den = Text("1", font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46).move_to(den_pos)
-        curr_res = Text("1.0", font=FONT_NAME, weight=FONT_WEIGHT, color=C_GOLD, font_size=46).next_to(eq_sign, RIGHT, buff=0.4)
         
         self.play(
-            FadeIn(frac_line), FadeIn(eq_sign),
-            TransformFromCopy(seq_texts_ext[1], curr_num),
-            TransformFromCopy(seq_texts_ext[0], curr_den),
-            FadeIn(curr_res, shift=DOWN*0.2)
+            FadeOut(all_tree_mobjects),
+            FadeOut(VGroup(*saved_fib_numbers)),
+            run_time=0.8
         )
-        self.wait(0.5)
+        self.wait(0.3)
 
-        # МЕДЛЕННЫЕ ШАГИ ДЛЯ ЧИТАЕМОСТИ (до 5/3)
-        val_strs = ["2.0", "1.5", "1.666..."]
-        for i in range(1, 4):
-            new_box = SurroundingRectangle(VGroup(seq_texts_ext[i], seq_texts_ext[i+1]), color=C_GOLD, corner_radius=0.1, buff=0.15)
-            new_num = Text(str(fib_seq_ext[i+1]), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46).move_to(num_pos)
-            new_den = Text(str(fib_seq_ext[i]), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46).move_to(den_pos)
-            new_res = Text(val_strs[i-1], font=FONT_NAME, weight=FONT_WEIGHT, color=C_GOLD, font_size=46).next_to(eq_sign, RIGHT, buff=0.4)
+        # ---------------------------------------------------------
+        # 5. ВЕРТИКАЛЬНАЯ ЛЕНТА (РАСШИРЕНА ДЛЯ БЕСКОНЕЧНОГО ПОЛЕТА)
+        # ---------------------------------------------------------
+        # 28 чисел Фибоначчи (уходят далеко за сотни тысяч)
+        fib_vals = [1, 1]
+        for _ in range(26):
+            fib_vals.append(fib_vals[-1] + fib_vals[-2])
+
+        col_x = -2.7
+        row_dy = 0.95
+
+        reel_mobjects = []
+        for idx, val in enumerate(fib_vals):
+            txt = Text(str(val), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=34)
+            y_pos = -0.475 + idx * row_dy
+            txt.move_to(np.array([col_x, y_pos, 0]))
+            reel_mobjects.append(txt)
+
+        reel_group = VGroup(*reel_mobjects)
+
+        def reel_focus_updater(mob):
+            for item in mob:
+                dist = abs(item.get_center()[1])
+                if dist < 0.65:
+                    item.set_opacity(1.0)
+                elif dist < 1.3:
+                    t = (dist - 0.65) / 0.65
+                    item.set_opacity(1.0 - 0.82 * t)
+                elif dist < 3.8:
+                    item.set_opacity(0.18)
+                elif dist < 5.0:
+                    t = (dist - 3.8) / 1.2
+                    item.set_opacity(max(0.0, 0.18 * (1.0 - t)))
+                else:
+                    item.set_opacity(0.0)
+
+        reel_group.add_updater(reel_focus_updater)
+
+        # Дробь
+        frac_x = -0.4
+        frac_line = Line(LEFT * 1.05, RIGHT * 1.05, color=C_WHITE, stroke_width=2.5).move_to(np.array([frac_x, 0.0, 0]))
+        num_pos = np.array([frac_x, 0.6, 0])
+        den_pos = np.array([frac_x, -0.6, 0])
+        
+        eq_sign = Text("=", font=FONT_NAME, weight=FONT_WEIGHT, color=C_WHITE, font_size=38).next_to(frac_line, RIGHT, buff=0.3)
+        res_anchor = eq_sign.get_right() + RIGHT * 0.3
+
+        curr_num = Text(str(fib_vals[1]), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=38).move_to(num_pos)
+        curr_den = Text(str(fib_vals[0]), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=38).move_to(den_pos)
+        curr_res = Text("= 1.0", font=FONT_NAME, weight=FONT_WEIGHT, color=C_GOLD, font_size=38)
+        curr_res.move_to(res_anchor, aligned_edge=LEFT)
+
+        self.play(
+            FadeIn(reel_group),
+            FadeIn(frac_line),
+            FadeIn(eq_sign),
+            FadeIn(curr_num),
+            FadeIn(curr_den),
+            FadeIn(curr_res),
+            run_time=0.8
+        )
+        self.wait(0.4)
+
+        # ---------------------------------------------------------
+        # 6. ПОСТЕПЕННЫЙ РАЗГОН (22 ШАГА)
+        # ---------------------------------------------------------
+        step_times = [
+            0.55, 0.50, 0.45,                     # 1..3 (медленно)
+            0.38, 0.34, 0.30, 0.26, 0.22, 0.19,  # 4..9
+            0.16, 0.14, 0.13, 0.12, 0.11, 0.10,  # 10..15
+            0.09, 0.08, 0.08, 0.07, 0.07, 0.06   # 16..21 (быстрый поток)
+        ]
+
+        total_steps = len(step_times)
+
+        for step in range(1, total_steps + 1):
+            t_dur = step_times[step - 1]
             
-            # Четкий механический счетчик
-            self.play(
-                Transform(box, new_box),
-                curr_num.animate.shift(UP*0.4).set_opacity(0),
-                curr_den.animate.shift(UP*0.4).set_opacity(0),
-                curr_res.animate.shift(UP*0.4).set_opacity(0),
-                FadeIn(new_num, shift=UP*0.4),
-                FadeIn(new_den, shift=UP*0.4),
-                FadeIn(new_res, shift=UP*0.4),
-                run_time=0.6
-            )
-            self.remove(curr_num, curr_den, curr_res)
-            curr_num, curr_den, curr_res = new_num, new_den, new_res
-            self.wait(0.4)
+            num_val = fib_vals[step + 1]
+            den_val = fib_vals[step]
+            ratio = num_val / den_val
 
-        # ---------------------------------------------------------
-        # 6. БЕЗУПРЕЧНЫЙ ТАБЛО-СЛАЙД (БЕЗ КАШИ И ШЛЕЙФОВ)
-        # ---------------------------------------------------------
-        # Убираем старые текстовые объекты из движка, они нам больше не нужны
-        self.remove(curr_num, curr_den, curr_res)
+            next_num = Text(str(num_val), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=38).move_to(num_pos)
+            next_den = Text(str(den_val), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=38).move_to(den_pos)
 
-        # Создаем трекер - он будет указывать, на каком мы индексе в массиве
-        tracker = ValueTracker(3.0)
-        
-        # Функция, которая вычисляет, куда должна сдвинуться длинная лента
-        def get_shift():
-            idx = int(tracker.get_value())
-            # Центрируем рамку на текущих 2-х элементах
-            target_center = VGroup(seq_texts_ext[idx], seq_texts_ext[idx+1]).get_center()
-            return ORIGIN[0] - target_center[0]
-
-        # Привязываем движение ленты и рамки к трекеру
-        seq_texts_ext.add_updater(lambda m: m.set_x(m.get_x() + get_shift()))
-        
-        # Эти элементы (Счетчик) перерисовываются СТРОГО 1 раз за кадр. 
-        # Никаких Transform, никаких шлейфов! Чистое цифровое табло.
-        dynamic_num = always_redraw(lambda: Text(str(fib_seq_ext[int(tracker.get_value()) + 1]), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46).move_to(num_pos))
-        dynamic_den = always_redraw(lambda: Text(str(fib_seq_ext[int(tracker.get_value())]), font=FONT_NAME, weight=FONT_WEIGHT, color=C_PEACH, font_size=46).move_to(den_pos))
-        
-        # Динамический результат. Если трекер дошел до конца - выводим заветное число
-        def get_res_text():
-            val = tracker.get_value()
-            idx = int(val)
-            if val < 21.0:
-                calc = fib_seq_ext[idx + 1] / fib_seq_ext[idx]
-                return Text(f"{calc:.6f}...", font=FONT_NAME, weight=FONT_WEIGHT, color=C_GOLD, font_size=46).next_to(eq_sign, RIGHT, buff=0.4)
+            if step < 3:
+                res_str = f"= {ratio:.1f}"
+            elif step < 5:
+                res_str = f"≈ {ratio:.3f}..."
+            elif step < 17:
+                res_str = f"≈ {ratio:.5f}..."
             else:
-                return Text("1.61803398...", font=FONT_NAME, weight="BOLD", color=C_GOLD, font_size=48).next_to(eq_sign, RIGHT, buff=0.4)
+                # Фиксация точной строки
+                res_str = "≈ 1.618..."
 
-        dynamic_res = always_redraw(get_res_text)
+            next_res = Text(res_str, font=FONT_NAME, weight=FONT_WEIGHT, color=C_GOLD, font_size=38)
+            next_res.move_to(res_anchor, aligned_edge=LEFT)
 
-        self.add(dynamic_num, dynamic_den, dynamic_res)
+            self.play(
+                reel_group.animate.shift(DOWN * row_dy),
+                curr_num.animate.shift(DOWN * 0.25).set_opacity(0),
+                curr_den.animate.shift(DOWN * 0.25).set_opacity(0),
+                curr_res.animate.shift(DOWN * 0.15).set_opacity(0),
+                FadeIn(next_num, shift=DOWN * 0.25),
+                FadeIn(next_den, shift=DOWN * 0.25),
+                FadeIn(next_res, shift=DOWN * 0.15),
+                run_time=t_dur,
+                rate_func=linear
+            )
 
-        # КИМЕНАТОГРАФИЧНЫЙ СЛАЙД
-        # Лента летит до 22-го индекса (до десятков тысяч), постепенно замедляясь в конце
-        self.play(
-            tracker.animate.set_value(22.0),
-            run_time=3.5,
-            rate_func=rate_functions.ease_in_out_cubic
-        )
-        self.wait(1.5)
+            self.remove(curr_num, curr_den, curr_res)
+            curr_num, curr_den, curr_res = next_num, next_den, next_res
 
         # ---------------------------------------------------------
-        # 7. ВОЗВРАЩЕНИЕ ЦВЕТКА (МЯГКИЙ ФИНАЛ)
+        # 7. НЕПРЕРЫВНЫЙ ПОЛЕТ ВВЕРХ В БЕСКОНЕЧНОСТЬ (БЕЗ ОСТАНОВКИ)
         # ---------------------------------------------------------
-        # Отключаем апдейтеры, чтобы чисто убрать объекты
-        dynamic_num.clear_updaters()
-        dynamic_den.clear_updaters()
-        dynamic_res.clear_updaters()
-        seq_texts_ext.clear_updaters()
+        # Отключаем локальный фокус, чтобы вся лента могла улететь ввысь
+        reel_group.clear_updaters()
 
+        # Собираем всю математическую формулу и ленту чисел
+        math_stream = VGroup(reel_group, frac_line, eq_sign, curr_num, curr_den)
+
+        # БЕЗ ПАУЗЫ: Число плавно отрывается и встает строго в центр экрана,
+        # а лента чисел и дробь на полной скорости УЛЕТАЮТ ВВЕРХ В КОСМОС,
+        # растворяясь в бесконечности!
         self.play(
-            FadeOut(seq_texts_ext, shift=UP*0.2),
-            FadeOut(box, scale=1.1),
-            FadeOut(dynamic_num, shift=UP*0.2), 
-            FadeOut(dynamic_den, shift=DOWN*0.2), 
-            FadeOut(dynamic_res), 
-            FadeOut(frac_line), 
-            FadeOut(eq_sign),
-            all_tree_mobjects.animate.set_opacity(1.0),
-            run_time=1.2
+            curr_res.animate.move_to(ORIGIN).scale(1.4),
+            math_stream.animate.shift(UP * 13).set_opacity(0),
+            run_time=1.4,
+            rate_func=rate_functions.ease_in_quad
         )
-        
-        # Возвращаем 7 оригинальных цифр на ветки
-        self.play(*[FadeIn(n) for n in orig_numbers_copies], run_time=0.8)
+        self.remove(math_stream)
+
+        # Одинокое золотое число строго в центре на чистом черном фоне на 2 секунды
         self.wait(2.0)
 
+        # Число плавно исчезает
+        self.play(FadeOut(curr_res), run_time=0.6)
+        self.wait(0.2)
+
+        # ---------------------------------------------------------
+        # 8. ВОЗВРАЩЕНИЕ ЦВЕТКА И ФИНАЛ
+        # ---------------------------------------------------------
+        # Дерево расцветает в 100% яркости
+        self.play(FadeIn(all_tree_mobjects), run_time=1.0)
+        self.play(*[FadeIn(n) for n in orig_numbers_copies], run_time=0.6)
+        self.wait(2.0)
+
+        # Финальный уход сцены в темноту
         self.play(
             FadeOut(Group(*self.mobjects), scale=1.05),
-            run_time=1.5,
+            run_time=1.2,
             rate_func=rate_functions.ease_in_cubic
         )
-        self.wait(0.5)
+        self.wait(0.4)
