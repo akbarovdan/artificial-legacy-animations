@@ -40,9 +40,7 @@ class PhyllotaxisArchitect(MovingCameraScene):
             return points
 
         def build_succulent_petal(length=1.0, color=C_JADE):
-            # Исправленный суккулент: Однородный 3D массив векторов (x, y, z)
-            # Вместо set_points_smoothly (капризный к углам), используем Polygon 
-            # со скругленными гранями (make_smooth).
+            # Клиновидный лепесток: строгий Polygon + скругление углов
             points = [
                 np.array([0.0, 0.0, 0.0]),
                 np.array([length*0.2, length*0.4, 0.0]),
@@ -56,7 +54,7 @@ class PhyllotaxisArchitect(MovingCameraScene):
             return path
 
         def build_dahlia_petal(length=1.0, base_color=C_PEACH, tip_color=C_GOLD, rank_ratio=0.0):
-            # Жесткий бриллиантовидный кристалл георгины
+            # Плотная ромбовидная структура
             col = interpolate_color(ManimColor(base_color), ManimColor(tip_color), rank_ratio)
             path = Polygon(
                 [0.0, 0.0, 0.0],
@@ -68,7 +66,7 @@ class PhyllotaxisArchitect(MovingCameraScene):
             return path
 
         def build_rose_sickle(length=1.0, color=C_LAVENDER):
-            # Срез "Кочан капусты/роза Питера Стивенса" 
+            # Дуги для структуры розы 
             crescent = AnnularSector(
                 inner_radius=length * 0.1, outer_radius=length * 0.45, 
                 angle=1.2*PI, start_angle=-0.6*PI, 
@@ -81,7 +79,7 @@ class PhyllotaxisArchitect(MovingCameraScene):
             cluster_vg = VGroup()
             elements = []
             
-            # Вложенность по Z (сзади вперед)
+            # Вложенность: снаружи к центру
             for rank in range(N_elements, 0, -1):
                 idx = rank - 1
                 x, y, theta = pts_data[idx]
@@ -96,16 +94,19 @@ class PhyllotaxisArchitect(MovingCameraScene):
             return cluster_vg, elements, pts_data
 
         def spring_out_anim(target_group, dur_factor=1.0):
-            """Анимация: рождение и выброс цветка радиально из R=0"""
+            """Исправленная функция взрывного радиального роста цветка"""
             anims = []
-            for target_shape in target_group:
-                # Математическое начало "сингулярности"
-                dummy = target_shape.copy().move_to(ORIGIN).scale(0.001).set_opacity(0)
-                # target_shape запомнил свое "конечное взрослое место" 
-                anims.append(Transform(dummy, target_shape, rate_func=rate_functions.ease_out_back))
-                target_group.replace(target_shape, dummy)
+            for shape in target_group:
+                # 1. Запоминаем финальную взрослую позу каждого лепестка
+                target_state = shape.copy()
+                
+                # 2. Оригинал схлопываем до абсолютного нуля в координату ORIGIN [0, 0, 0]
+                shape.move_to(ORIGIN).scale(0.001).set_opacity(0)
+                
+                # 3. Делаем Трансформацию в запомненную позу
+                anims.append(Transform(shape, target_state, rate_func=rate_functions.ease_out_back))
             
-            # Анимация "веера" (самые свежие вылетают быстрее старых)
+            # Разбрасываем от последнего в списке до первого с каскадной задержкой
             return LaggedStart(*anims, lag_ratio=0.015 / dur_factor) 
 
 
@@ -115,21 +116,19 @@ class PhyllotaxisArchitect(MovingCameraScene):
         N_succ = 180
         scale_c_succ = 0.32
         
-        # Инъекция зависимости
         succ_builder = lambda length, rank_ratio: build_succulent_petal(length, C_JADE)
         succ_cluster, succ_elements, _ = create_phyllotaxis_cluster(N_succ, scale_c_succ, succ_builder)
         
-        # Эмоция "Чудо рождения природы"
         self.play(spring_out_anim(succ_cluster, dur_factor=0.8), run_time=3.5)
         self.wait(0.5)
 
-        # Органическое угасание в темноте: рассыпается по ветру 
+        # Рассыпается по ветру радиальным взрывом
         blow_anims = [elem.animate.shift(elem.get_center()*0.3).scale(0.5).set_opacity(0) for elem in succ_cluster]
         self.play(AnimationGroup(*blow_anims), run_time=1.0)
         self.remove(succ_cluster)
 
         # ---------------------------------------------------------
-        # ФАЗА 2: ВЗРЫВ ПЕРСИКОВОЙ ГЕОРГИНЫ И МАТЕМАТИЧЕСКИЙ РЕНДЕР
+        # ФАЗА 2: ВЗРЫВ ГЕОРГИНЫ И МАТЕМАТИЧЕСКИЙ HUD-ИНЖЕНЕР
         # ---------------------------------------------------------
         N_dahlia = 250
         scale_c_dahl = 0.28
@@ -137,17 +136,15 @@ class PhyllotaxisArchitect(MovingCameraScene):
         dahl_builder = lambda length, rank_ratio: build_dahlia_petal(length, C_PEACH, C_GOLD, rank_ratio)
         dahl_cluster, dahl_elements, dahl_points = create_phyllotaxis_cluster(N_dahlia, scale_c_dahl, dahl_builder)
 
-        # Цветок выплескивается из ядра
         self.play(spring_out_anim(dahl_cluster, dur_factor=1.2), run_time=3.0)
 
-        # ПОКАЗЫВАЕМ ПАРАСТИХИИ (ВСТРЕЧНЫЕ ФИБОНАЧЧЕВЫ СПИРАЛИ)
+        # Парастихии: встречные золотые и сапфировые нити Фибоначчи
         def build_spiral_arms(pts_list, fib_jump, max_N, line_col, width):
             family = VGroup()
             for start_i in range(1, fib_jump + 1):
                 curr = start_i
                 arc_points = []
                 while curr <= max_N:
-                    # Достаем математические сырые X, Y из вогеля 
                     x, y, _ = pts_list[curr - 1]
                     arc_points.append(np.array([x, y, 0]))
                     curr += fib_jump
@@ -157,12 +154,11 @@ class PhyllotaxisArchitect(MovingCameraScene):
                     family.add(arm)
             return family
 
-        # Чудо Природы 1: Влево против часовой летит 21 спираль 
+        # Влево - прыжок через 21 спираль. Вправо - прыжок через 13 (Числа Фибоначчи!)
         spiral_ccw = build_spiral_arms(dahl_points, 21, N_dahlia, C_SAPPHIRE, 2.5)
-        # Чудо Природы 2: Вправо по часовой ровно 13 спиралей (Фибоначчи)
         spiral_cw  = build_spiral_arms(dahl_points, 13, N_dahlia, C_GOLD, 2.5)
         
-        # Гасим яркость Георгины, чтобы неоновый радар Фибоначчи светился ярче
+        # Гасим яркость Георгины, чтобы выделить математические дуги
         hud_opacity_darken = [elem.animate.set_fill(opacity=0.35).set_stroke(opacity=0.2) for elem in dahl_cluster]
         
         self.play(
@@ -178,11 +174,10 @@ class PhyllotaxisArchitect(MovingCameraScene):
         self.wait(1.0)
 
         # ---------------------------------------------------------
-        # ФАЗА 3: ЗОУМ-МАКРО СЪЕМКА НА ИДЕАЛЬНЫЙ УГОЛ РОЖДЕНИЯ 
+        # ФАЗА 3: МАКРО-ЗУМ ДЛЯ ЗОЛОТОГО УГЛА 137.5°
         # ---------------------------------------------------------
-        # Корень всего этого — математически нерушимый УГОЛ 137.5 градусов
-        p1 = np.array([dahl_points[0][0], dahl_points[0][1], 0])  # n=1
-        p2 = np.array([dahl_points[1][0], dahl_points[1][1], 0])  # n=2
+        p1 = np.array([dahl_points[0][0], dahl_points[0][1], 0])  # n=1 (Сердцевина)
+        p2 = np.array([dahl_points[1][0], dahl_points[1][1], 0])  # n=2 (Вторая почка)
         
         vector_1 = Line(ORIGIN, p1).set_stroke(C_JADE, 2.5)
         vector_2 = Line(ORIGIN, p2).set_stroke(C_JADE, 2.5)
@@ -193,7 +188,7 @@ class PhyllotaxisArchitect(MovingCameraScene):
 
         zoom_HUD_group = VGroup(vector_1, vector_2, golden_angle_arc, hud_label)
 
-        # Схлопываем макро: камера ныряет внутрь Георгины прямо в n=0 (scale_камеры = 0.22)
+        # Ныряем прямо вглубь сердцевины: R=0 (scale = 0.22 - х5 зум)
         self.play(
             FadeOut(spiral_cw, spiral_ccw),
             dahl_cluster.animate.set_opacity(0.12),
@@ -202,11 +197,10 @@ class PhyllotaxisArchitect(MovingCameraScene):
             rate_func=rate_functions.ease_in_out_cubic
         )
 
-        # Высвечиваем две самых свежих лепестковых капсулы, где начинается спираль
-        # -1 и -2 в Manim: потому что dahl_cluster собирался в обратном порядке N_dahlia -> 1
         last_e = dahl_cluster[-1] 
         scd_last_e = dahl_cluster[-2]
         
+        # Поджигаем те самые два исходных лепестка золотым свечением
         self.play(
             last_e.animate.set_opacity(1.0).set_fill(C_GOLD).scale(1.15),
             scd_last_e.animate.set_opacity(1.0).set_fill(C_GOLD).scale(1.15),
@@ -214,17 +208,17 @@ class PhyllotaxisArchitect(MovingCameraScene):
             Create(vector_2),
             run_time=0.8
         )
-        # Математическое "запечатывание" ответа — дуга в 137.5 
+        # Математически фиксируем угол Золотого сечения
         self.play(Create(golden_angle_arc), FadeIn(hud_label), run_time=1.0)
         self.wait(1.5)
 
         # ---------------------------------------------------------
-        # ФАЗА 4: КОСМОЛОГИЯ — ВСПЛЫТИЕ БОЖЕСТВЕННОЙ РОЗЫ ИЗ ОРБИТЫ
+        # ФАЗА 4: РАСШИРЕНИЕ В РОЗУ (МЕТАМОРФОЗ П.СТИВЕНСА)
         # ---------------------------------------------------------
         self.play(
             FadeOut(dahl_cluster),
             FadeOut(zoom_HUD_group),
-            # Камера взмывает обратно на гигантский зум X=1 (исходный 1.0)
+            # Вытягиваем камеру из глубин наружу (1.0)
             self.camera.frame.animate.scale(1.0/0.22).move_to(ORIGIN),
             run_time=1.2,
             rate_func=rate_functions.ease_in_out_cubic
@@ -236,13 +230,13 @@ class PhyllotaxisArchitect(MovingCameraScene):
         rose_builder = lambda length, rank_ratio: build_rose_sickle(length, C_LAVENDER)
         rose_cluster, _, _ = create_phyllotaxis_cluster(N_rose, scale_c_rose, rose_builder)
 
-        # Вращающийся вихревой влёт гигантских лавандовых сфер 
+        # Бутон капустной/лавандовой розы стремительно "наматывается" сам на себя
         self.play(spring_out_anim(rose_cluster, dur_factor=0.6), run_time=3.5)
 
-        # Медленное и торжественное планетарное прокручивание структуры по орбитам Фибоначчи
+        # Орбитальное, глубокое прокручивание структуры
         self.play(rose_cluster.animate.rotate(-1.5*PI).scale(1.05), run_time=3.5, rate_func=smooth)
 
-        # Финальная тьма. Исчезает в вечности 
+        # Космическое растворение в финал (без саб-ударов и вибраций на будущее аудио)
         self.play(
             rose_cluster.animate.scale(4.0).set_opacity(0),
             run_time=2.2,
