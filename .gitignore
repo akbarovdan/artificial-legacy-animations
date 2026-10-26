@@ -1,0 +1,13 @@
+# Manim и OpenCV медиа
+media/
+*.mp4
+*.wav
+*.png
+*.jpg
+*.jpeg
+*.avi
+
+# Кэши Python
+__pycache__/
+.venv/
+*.pyc
